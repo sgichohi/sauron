@@ -28,6 +28,7 @@ namespace COS518 {
         void insert(std::string);
         std::string removeMax() throw(int);
         bool isEmpty();
+        int size();
     };
 
 }

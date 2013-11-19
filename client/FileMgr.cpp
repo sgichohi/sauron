@@ -101,6 +101,8 @@ namespace COS518 {
         lock->unlock();
         return b;
     }
+    
+    int FileMgr::size() { return pq->size(); }
 
     // Constructor
     FileMgr::FileMgr(string directory) throw() {
