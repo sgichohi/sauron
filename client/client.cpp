@@ -1,7 +1,6 @@
 #include "FileMgr.h"
-#include "ByteQueue.h"
-#include "AckSet.h"
 #include "ClientSocket.h"
+#include "UserDefined.h"
 #include <thread>
 #include <chrono>
 #include <istream>
@@ -10,8 +9,11 @@
 #include <cerrno>
 #include <cstring>
 #include <sstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using namespace std;
+using namespace UserDefined;
 
 namespace COS518 {
     /*******************************************************************************/
@@ -20,35 +22,66 @@ namespace COS518 {
     /* Capture pictures from the webcam, calculate delta scores, save as a file    */
     /* and add an entry to the FileMgr for that picture.                           */
     /*******************************************************************************/
-    void captureThread(string directory, FileMgr *fm) {
+    long extendLamport(string timefile, long addend) {
+        // Establish a timestamp
+	    char buf[100];
+		memset(buf, 0, 100);
+	    long lamport;
+	    stringstream ss;
+	    
+	    // Read timestamp file
+	    FILE* fp = fopen(timefile.c_str(), "rb");
+	    fread(buf, 1, 100, fp)
+	    fclose(fp);
+	    
+	    // Write timestamp file
+	    lamport = stol(buf);
+	    ss << (lamport + addend);
+	    fp = fopen(timefile.c_str(), "wb");
+	    fwrite(ss.str().c_str(), 1, ss.str().length(), fp);
+	    fclose(fp);
+	    
+	    return lamport;
+	}
     
-        for (long i = 0; true; i++) {
-            stringstream ss;
-            ss << i << "-" << i << ".jpg";
-            string filename = ss.str();
-            string path = directory + "/" + filename;
-            string content = "hello!";
-            
-            FILE *file = fopen(path.c_str(), "wb");
-            fwrite(content.c_str(), 1, content.length(), file);
-            fclose(file);
-            
-            fm->insert(filename);
-            cerr << "CAPTURE: generated file " << filename << "\n";
-            this_thread::sleep_for(chrono::milliseconds(50));  
-        }
-            
-        //for (; ;) {
-            // Retrieve picture
-            
-            // Calculate long delta score
-            
-            // string fileName = "[milliseconds]-[delta-score].jpg";
-            
-            // Save picture as "[directory]/[milliseconds since 1/1/1970]-[delta score].jpg"
-            
-            //fm->insert(fileName);
-        //}
+    void captureThread(string directory, FileMgr *fm, string timefile) {
+        long lamport = extendLamport(timefile, 1000);
+        long limit   = lamport + 1000;
+        Transformer trfm;
+        
+        for (; ; lamport++) {
+            // Capture a new picture
+            char *pic = (char *)"hello!"; // Replace
+            int   len = 7; // Replace
+            long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+           
+            // Retrieve sendables to place in the FileMgr
+            for (trfm.begin(pic, len, ts); !trfm.finished(); trfm.next()) {
+                // Update the lamport time if necessary
+		        if (lamport >= limit) {
+		            lamport = extendLamport(timefile, 1000);
+		            limit   = lamport + 1000;
+		        } 
+                
+                // Create a filename for the sendable
+                stringstream ss;
+                ss << lamport << "-" << trfm.current()->score() << ".jpg";
+                string filename = ss.str();
+                string path = directory + "/" + filename;
+                
+                // Save the sendable to a file with a unique name
+                int outlen = 0;
+                char *towrite = trfm.current()->serialize(&outlen);
+                FILE *file = fopen(path.c_str(), "wb");
+                fwrite(towrite, 1, outlen, file);
+                fclose(file);
+                delete towrite;
+                
+                // Insert the sendable object into the FileMgr
+                fm->insert(lamport, trfm.current()->score(), filename);
+	            cerr << "CAPTURE: generated file " << filename << "\n"; 
+	        } 
+		}
     }
     
     /*******************************************************************************/
@@ -58,12 +91,12 @@ namespace COS518 {
     /* that has been acknowledged and wait for another acknowledgement.  Crashes   */
     /* if the provided socket fails for any reason.                                */
     /*******************************************************************************/
-    void ackThread(AckSet *s, ClientSocket *sock) {
+    void ackThread(FileMgr *fm, ClientSocket *sock) {
         for (; ;) {
             try {
                 long l = sock->recv();
                 cerr << "ACK: Acknowledgement received for timestamp " << l << "\n";
-                //s->erase(l);
+                fm->ack(l);
             } catch (...) { return; }
         }
     }
@@ -77,25 +110,25 @@ namespace COS518 {
     /* fails for any reason.  If maxUnacked is <= 0, there is no cap on the number */
     /* of items that will be left unacked at once.                                 */
     /*******************************************************************************/
-    void sendThread(ByteQueue *q, AckSet *s, ClientSocket *sock, int id, int maxUnacked = 0) {        
+    void sendThread(FileMgr *fm, ClientSocket *sock, int id, int maxUnacked = 0) {        
         long ts;
         char *buf;
         int len;
-        string path;
+        string filename;
         
         // Send the client's ID number to the server.  Crash the thread on failure.
         try { sock->send((long)id); } catch(...) { return; }
         
-        // Loop forever sending items from the ByteQueue
+        // Loop forever sending items from the FileManager's queue
         for (; ;) {
             // If the maximum number of items is currently outstanding, sleep
-            while (maxUnacked > 0 && s->size() >= maxUnacked) {
+            while (maxUnacked > 0 && fm->ackSize() >= maxUnacked) {
                 this_thread::sleep_for(chrono::milliseconds(100));
             }
             
-            // Attempt to take a picture from the ByteQueue.
+            // Attempt to take a picture from the FileManager
             while (true) {
-                try { buf = q->dequeue(&ts, &path, &len); }
+                try { buf = fm->nextToAcks(&ts, &len, filename); }
                 
                 // On failure, sleep and try again
                 catch (...) {
@@ -115,13 +148,12 @@ namespace COS518 {
             }
             // On failure, add the items back into the queue and crash the thread
             catch (...) {
-                q->enqueue(ts, buf, path, len);
+                fm->enqueue(ts, buf, len, filename);
                 return;
             }
             
             // On success, add an entry to the AckSet and deallocate the buffer memory
-            cout << "SEND: Picture " << ts << " successfully sent\n";
-            s->insert(ts, path);
+            cerr << "SEND: Picture " << ts << " successfully sent\n";
             delete buf;
         }
     }
@@ -137,45 +169,13 @@ namespace COS518 {
     // Enum for keeping track of thread state
     enum { NOT_IN_USE, IN_FLIGHT, FINISHED};
     
-    // The worker thread
-    void loadThread(string dir, string fileName, ByteQueue *q, int *status) {
-        // Determine the file's timestamp from its filename
-        size_t split = fileName.find("-");
-        if (split == string::npos) { *status = FINISHED; return; }
-        
-        long ts = 0;
-        try { ts = stol(fileName.substr(0, split)); }
-        catch (...) { *status = FINISHED; return; }
-                
-        // Read the file into an array
-        string path = dir + "/" + fileName;
-        ifstream is(path, ifstream::binary);
-        
-        // Crash the thread if the file does not exist
-        if (!is) {
-            cerr << "Error : " << path << " " << strerror(errno) << "\n";
-            *status = FINISHED;
-            return;
-        }
-        
-        // Determine the file length
-        is.seekg(0, is.end);
-        int length = is.tellg();
-        is.seekg(0, is.beg);
-        
-        // Read the file into a newly allocated buffer
-        char* buf = new char[length];
-        is.read(buf, length);
-        
-        // Clean up and finish
-        is.close();
-        q->enqueue(ts, buf, path, length);
-        cout << "LOAD: successfully loaded timestamp " << ts << "\n"; 
-        *status = FINISHED;   
+    void loadThread(FileMgr *fm, int *status) {
+        try { fm->nextToQueue(); } catch (...) { }
+        *status = FINISHED;
     }
 
     // Manages a pool of loadThreads
-    void loadMaster(string dir, FileMgr *fileMgr, ByteQueue *q, int maxInFlight, int maxInQ) {
+    void loadMaster(string dir, FileMgr *fm, int maxInFlight, int maxInQ) {
         // Initialize thread-tracking information
         thread ts[maxInFlight];
         int inFlight = 0;
@@ -195,15 +195,13 @@ namespace COS518 {
                 
                 // Place another thread in flight if possible
                 while (status[i] == NOT_IN_USE) {
-                    if (inFlight < maxInFlight && q->size() < maxInQ) {
-                        try {
-                            string next = fileMgr->removeMax(); // Throws if heap is empty
+                    if (inFlight < maxInFlight &&
+                        fm->queueSize() + inFlight < maxInQ &&
+                        !fm->heapIsEmpty())
+                    {
                             status[i] = IN_FLIGHT;
-                            ts[i] = thread(loadThread, dir, next, q, status + i);
-                            cout << "LOAD: Creating thread to load " << next << "\n";
+                            ts[i] = thread(loadThread, fm, status + i);
                             inFlight++;
-                        }
-                        catch (...) { this_thread::sleep_for(chrono::milliseconds(100)); }
                     } else {
                         this_thread::sleep_for(chrono::milliseconds(100));
                     }
@@ -216,44 +214,58 @@ namespace COS518 {
 using namespace COS518;
 
 int main(int argc, char** argv) {
-  // Return an error if an improper number of arguments are specified
-  if (argc != 5) {
-      cerr << "Usage: client [Picture Directory] [Server URL] [Server Port] [Unique ID]\n";
-      return 1;
-  }
+    // Return an error if an improper number of arguments are specified
+    if (argc != 4) {
+        cerr << "Usage: client [Unique ID] [Server URL] [Server Port]\n";
+        return 1;
+    }
+  
+    // Initialize filestructure
+    string dir = "output";
+    string cfg = "config";
+    string timefile = cfg + "/time.txt";
+  
+    mkdir(dir.c_str(), 0755);
+    mkdir(cfg.c_str(), 0755);
+    
+    FILE *fp;
+    if ((fp = fopen(timefile.c_str(), "r"))) {
+        fclose(fp);
+    } else {
+        ofstream fp(timefile, ios::binary);
+        fp << "0";
+        fp.close();
+    }
 
-  // Initialize datastructures
-  string dir(argv[1]);
-  FileMgr *fm = new FileMgr(dir);
-  ByteQueue *q = new ByteQueue();
-  AckSet *s = new AckSet();
-  ClientSocket *sock = new ClientSocket(argv[3], argv[4]);
+    // Initialize datastructures
+    FileMgr *fm = new FileMgr(dir);
+    ClientSocket *sock = new ClientSocket(argv[2], argv[3]);
   
-  // Begin threads that are never supposed to crash (capture and load)
-  thread load(loadMaster, dir, fm, q, 2, 2);
-  thread capt(captureThread, dir, fm);
+    // Begin threads that are never supposed to crash (capture and load)
+    thread load(loadMaster, dir, fm, 2, 2);
+    thread capt(captureThread, dir, fm, timefile);
+    
   
-  // Begin threads that crash if the socket closes
-  for (; ;) {
-      // Reopen the socket if it has closed
-      while (!sock->isOpen()) {
-          delete sock;
-          sock = new ClientSocket(argv[3], argv[4]);
-          cerr << "Socket is recovering\n";
-          std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-      }
+    // Begin threads that crash if the socket closes
+    for (; ;) {
+        // Reopen the socket if it has closed
+        while (!sock->isOpen()) {
+            delete sock;
+            sock = new ClientSocket(argv[2], argv[3]);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
       
-      // Initialize the sender and acknowledgement threads
-      thread send(sendThread, q, s, sock, stoi(string(argv[2])), 0);
-      thread acks(ackThread, s, sock);
+        // Initialize the sender and acknowledgement threads
+        thread send(sendThread, fm, sock, stoi(string(argv[1])), 0);
+        thread acks(ackThread, fm, sock);
       
-      // Both threads crash if the socket closes
-      send.join();
-      acks.join();
-  }
+        // Both threads crash if the socket closes
+        send.join();
+        acks.join();
+    }
   
-  // Should never get here
-  load.join();
-  capt.join();
-  return 1;
+    // Should never get here
+    load.join();
+    capt.join();
+    return 1;
 }

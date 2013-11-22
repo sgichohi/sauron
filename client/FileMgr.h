@@ -3,32 +3,50 @@
 #ifndef FILEMGR_H
 #define FILEMGR_H
 
+#include "UserDefined.h"
+#include "Entry.h"
 #include <iostream>
-#include <thread>
 #include <mutex>
+#include <thread>
 #include <queue>
+#include <map>
+#include <cstdio>
+
+using namespace UserDefined;
+using namespace std;
 
 namespace COS518 {
-
-    class Entry;
-
     class FileMgr {
         // Private members
         private:
+        string dir;
+        mutex *heapLock;
+        mutex *queueLock;
+        mutex *acksLock;
+        priority_queue<HeapEntry> *pq;
+        queue<QueueEntry>         *q;
+        map<long, string>         *acks;
         
-        std::mutex *lock;
-        std::priority_queue<Entry> *pq;
-        
-        Entry parseName(const char *) throw(int);
+        HeapEntry parseName(string& dir, string& filename) throw(int);
+        HeapEntry removeMax() throw(int);
         
         // Public members
         public:
-        FileMgr(std::string directory) throw();
-        ~FileMgr();
-        void insert(std::string);
-        std::string removeMax() throw(int);
-        bool isEmpty();
-        int size();
+        FileMgr(string dir) throw();
+       ~FileMgr();
+       
+        char *nextToAcks(long *ts, int *len, string&) throw(int);
+        void  ack(long ts);
+        int   ackSize();
+        
+        void enqueue(long ts, char *buf, int len, string filename);
+        void nextToQueue() throw(int);
+        bool queueIsEmpty();
+        int  queueSize();
+        
+        void insert(long, long, string&);
+        bool heapIsEmpty();
+        int heapSize();
     };
 
 }

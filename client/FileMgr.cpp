@@ -1,139 +1,189 @@
 #include "FileMgr.h"
 #include <dirent.h>
 #include <string>
+#include <sstream>
+#include <fstream>
+#include <assert.h>
 
 using namespace std;
-
-/*******************************************************************************/
-/* HELPER CLASS ENTRY                                                          */
-/*******************************************************************************/
-namespace COS518 {    
-    class Entry {
-        // Private members
-        private:
-        
-        long time;
-        long delta;
-        std::string fileName;
-        
-        // Public members
-        public:
-        
-        // Constructors
-        Entry(long time, long delta, std::string fileName) {
-            this->time     = time;
-            this->delta    = delta;
-            this->fileName = fileName;
-        }
-        
-        // Public getters
-        long getTime()     { return time;     }
-        long getDelta()    { return delta;    }
-        std::string getFileName() { return fileName; }
-        
-        // Make it comparable
-        bool operator==(const Entry& that) const { return delta == that.delta; }
-        bool operator<=(const Entry& that) const { return delta <= that.delta; }
-        bool operator>=(const Entry& that) const { return delta >= that.delta; }
-        bool operator!=(const Entry& that) const { return delta != that.delta; }
-        bool operator< (const Entry& that) const { return delta <  that.delta; }
-        bool operator> (const Entry& that) const { return delta >  that.delta; }
-    };
-}
-
-std::ostream& operator<<(std::ostream &strm, COS518::Entry &e) {
-    return strm << "Entry(" << e.getTime() << ", " << e.getDelta()
-                << ", " << e.getFileName() << ")\n";
-}
+using namespace UserDefined;
 
 /*******************************************************************************/
 /* FUNCTIONALITY FOR FILEMGR                                                   */
 /*******************************************************************************/
 namespace COS518 {
-    // Parse a cstring name into an entry object.  Entry object must be freed.
-    Entry FileMgr::parseName(const char *c) throw(int) {
-        string s(c);
+    // Parse a directory/filename pair into an entry object
+    HeapEntry FileMgr::parseName(string& dir, string& filename) throw(int) {
+        // Determine the file's sendable score
+        size_t split  = filename.find("-");
+        size_t split2 = filename.find(".");
         
-        size_t split = s.find("-");
-        if (split == string::npos) throw 12;
+        if (split == string::npos || split2 == string::npos) throw 12;
+        long score = stol(filename.substr(split + 1, split2 - split - 1));
+        long ts    = stol(filename.substr(0, split));
         
-        size_t ext = s.find(".");
-        if (ext == string::npos || ext <= split) throw 12;
-        
-        string time = s.substr(0, split);
-        string delta = s.substr(split + 1, ext - split - 1);
-        
-        try {
-            return Entry(stol(time), stol(delta), s);
-        } catch (...) {
-            throw 12;
-        }
+        return HeapEntry(ts, score, filename);        
     }
     
+    /*******************************************************************************/
+    /* MANIPULATE THE HEAP                                                         */
+    /*******************************************************************************/
     // Insert into the pq
-    void FileMgr::insert(string fileName) {
-        lock->lock();
-        try { pq->push(parseName(fileName.c_str())); }
-        catch (int exp) { }
-        lock->unlock();
+    void FileMgr::insert(long ts, long score, string &filename) {
+        heapLock->lock();
+        pq->push(HeapEntry(ts, score, filename));
+        cerr << "HEAP: inserted " << filename << "\n";
+        heapLock->unlock();
     }
     
     // Remove the maximum element and return it
-    string FileMgr::removeMax() throw(int) {
-        lock->lock();
+    HeapEntry FileMgr::removeMax() throw(int) {
+        heapLock->lock();
         
         if (pq->empty()) {
-            lock->unlock();
+            heapLock->unlock();
             throw 13;
         }
         
-        Entry e = pq->top();
+        HeapEntry e = pq->top();
         pq->pop();
         
-        lock->unlock();
-        return e.getFileName();
+        heapLock->unlock();
+        return e;
     }
     
     // Check whether the pq is empty
-    bool FileMgr::isEmpty() {
-        lock->lock();
-        bool b = pq->empty();
-        lock->unlock();
-        return b;
+    bool FileMgr::heapIsEmpty() { return pq->empty(); }
+    int  FileMgr::heapSize()    { return pq->size();  }
+    
+    /*******************************************************************************/
+    /* MANIPULATE THE QUEUE                                                        */
+    /*******************************************************************************/
+    bool FileMgr::queueIsEmpty() { return q->empty(); }
+    int  FileMgr::queueSize()    { return q->size();  }
+    
+    void FileMgr::enqueue(long ts, char *buf, int len, string filename) {
+        queueLock->lock();
+        QueueEntry qe(ts, buf, len, filename);
+        q->push(qe);
+        queueLock->unlock();
+    }        
+    
+    void FileMgr::nextToQueue() throw(int) {
+        // Get the HeapEntry
+        HeapEntry he = removeMax();
+        
+        // Retrieve the path to the file
+        string filename = he.getFilename();
+        stringstream ss;
+        ss << dir << "/" << filename;
+        string path = ss.str();
+        
+        // Determine the length of the file
+        ifstream is(path, ifstream::binary);
+        if (!is) return;
+        is.seekg(0, ios::end);
+        int len = is.tellg();
+        is.seekg(0, ios::beg);
+        
+        // Retrieve the file into a QueueEntry
+        char *buf = new char[len];
+        is.read(buf, len);
+        is.close();
+        
+        // Finish
+        assert(buf);
+        enqueue(he.getTimestamp(), buf, len, filename);
+        cerr << "QUEUE: added " << filename << "\n";
     }
     
-    int FileMgr::size() { return pq->size(); }
-
-    // Constructor
-    FileMgr::FileMgr(string directory) throw() {
-        pq   = new priority_queue<Entry>();
-        lock = new mutex();
+    /*******************************************************************************/
+    /* MANIPULATE THE MAP                                                          */
+    /*******************************************************************************/
+    char *FileMgr::nextToAcks(long *ts, int *len, string &filename) throw(int) {
+        // Reserve the lock
+        queueLock->lock();
+        char *out;
         
-        // Acquire the lock so initialization is threadsafe
-        lock->lock();
+        // Throw an exception if the queue is empty
+        if (q->empty()) {
+            queueLock->unlock();
+            throw 12;
+        }
+        
+        // Take the entry out of the queue
+        QueueEntry qe = q->front();
+        q->pop();
+        
+        // Prepare the output information
+        *ts = qe.getTimestamp();
+        out = qe.getBuffer(len);
+        filename = qe.getFilename();
+        
+        // Unlock the lock
+        queueLock->unlock();
+        
+        // Add to the ack map
+        acksLock->lock();
+        acks->insert(make_pair(*ts, filename));
+        acksLock->unlock();
+        
+        return out;
+    }
+    
+    void FileMgr::ack(long ts) {
+        acksLock->lock();
+        try {
+            string path = dir + "/" + acks->at(ts);
+            acks->erase(ts);
+            acksLock->unlock();
+            
+            remove(path.c_str());
+        } catch (...) { acksLock->unlock(); }
+    }
+    
+    int FileMgr::ackSize() { return acks->size(); }
+    
+    /*******************************************************************************/
+    /* CONSTRUCTOR                                                                 */
+    /*******************************************************************************/
+    FileMgr::FileMgr(string directory) throw() {
+        acks = new map<long, string>;
+        q    = new queue<QueueEntry>();
+        pq   = new priority_queue<HeapEntry>();
+        
+        heapLock  = new mutex();
+        queueLock = new mutex();
+        acksLock  = new mutex();
+        dir = directory;
+        
+        heapLock->lock();
         
         // Retrieve all files from the directory
         DIR *dp;
         struct dirent *ep;
-        const char *c_dir = ("./" + directory).c_str();
+        const char *c_dir = ("./" + dir).c_str();
         
         // Add all properly named files as entries in the priority queue
         if ((dp = opendir(c_dir))) {
             while ((ep = readdir(dp))) {
-                try { pq->push(parseName(ep->d_name)); }
-                catch(int exp) { }
+                try {
+                    string filename(ep->d_name);
+                    pq->push(parseName(dir, filename));
+                } catch (...) { continue; }
             }
             
             closedir(dp);
         }
         
-        // Release the mutex
-        lock->unlock();       
+        heapLock->unlock(); 
     }
     
     // Destructor
     FileMgr::~FileMgr() {
         delete pq;
-        delete lock;
+        delete q;
+        delete heapLock;
+        delete queueLock;
     }
 }
