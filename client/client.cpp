@@ -31,7 +31,7 @@ namespace COS518 {
 	    
 	    // Read timestamp file
 	    FILE* fp = fopen(timefile.c_str(), "rb");
-	    fread(buf, 1, 100, fp)
+	    fread(buf, 1, 100, fp);
 	    fclose(fp);
 	    
 	    // Write timestamp file

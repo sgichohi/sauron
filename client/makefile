@@ -42,9 +42,9 @@ server.o : ServerSocket.h server.cpp
 #------------------------------------------------
 # Build binaries
 #------------------------------------------------
-DEPS = FileMgr.o Entry.o ClientSocket.o AbstractSocket.o Util.o UserDefined.o client.o
-client : $(DEPS)
-	$(CC) $(CCFLAGS) $(DEPS) -o client
+CLIENT_DEPS = FileMgr.o Entry.o ClientSocket.o AbstractSocket.o Util.o UserDefined.o client.o
+client : $(CLIENT_DEPS)
+	$(CC) $(CCFLAGS) $(CLIENT_DEPS) -o client
 
 server : ServerSocket.o AbstractSocket.o Util.o server.o
 	$(CC) $(CCFLAGS) ServerSocket.o Util.o AbstractSocket.o server.o -o server
