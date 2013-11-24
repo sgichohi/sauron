@@ -2,7 +2,7 @@
 # Macros
 #------------------------------------------------
 CC = g++
-CCFLAGS = -Wall -std=c++11 -pthread -O3
+CCFLAGS = -Wall -std=gnu++11 -pthread -O3 -D_GLIBCXX_USE_NANOSLEEP
 
 #------------------------------------------------
 # Build client .o files
