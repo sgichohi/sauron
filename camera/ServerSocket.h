@@ -17,7 +17,7 @@ namespace COS518 {
         public:
         Acceptor(char *);
         void close();
-        ServerSocket accept() throw(int);
+        ServerSocket *accept() throw(int);
     };
 }
 

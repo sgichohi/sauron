@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <assert.h>
+#define HEAP_DEBUG 0
 
 using namespace std;
 using namespace UserDefined;
@@ -32,7 +33,9 @@ namespace COS518 {
     void FileMgr::insert(long ts, long score, string &filename) {
         heapLock->lock();
         pq->push(HeapEntry(ts, score, filename));
-        cerr << "HEAP: inserted " << filename << "\n";
+        if (HEAP_DEBUG) {
+            cerr << "HEAP: inserted " << filename << "\n";
+        }
         heapLock->unlock();
     }
     
@@ -94,7 +97,9 @@ namespace COS518 {
         // Finish
         assert(buf);
         enqueue(he.getTimestamp(), buf, len, filename);
-        cerr << "QUEUE: added " << filename << "\n";
+        if (HEAP_DEBUG) {
+            cerr << "QUEUE: added " << filename << "\n";
+        }
     }
     
     /*******************************************************************************/

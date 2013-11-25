@@ -1,5 +1,6 @@
 #include "FileMgr.h"
-#include "ClientSocket.h"
+#include "AbstractSocket.h"
+#include "ServerSocket.h"
 #include "UserDefined.h"
 #include <thread>
 #include <chrono>
@@ -11,6 +12,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define CAMERA_DEBUG 1
 
 using namespace std;
 using namespace UserDefined;
@@ -79,7 +81,10 @@ namespace COS518 {
                 
                 // Insert the sendable object into the FileMgr
                 fm->insert(lamport, trfm.current()->score(), filename);
-	            cerr << "CAPTURE: generated file " << filename << "\n"; 
+	            if (CAMERA_DEBUG) {
+	                cerr << "CAPTURE: generated file " << filename << "\n";
+	                this_thread::sleep_for(chrono::milliseconds(1000));
+	            }
 	        } 
 		}
     }
@@ -91,11 +96,13 @@ namespace COS518 {
     /* that has been acknowledged and wait for another acknowledgement.  Crashes   */
     /* if the provided socket fails for any reason.                                */
     /*******************************************************************************/
-    void ackThread(FileMgr *fm, ClientSocket *sock) {
+    void ackThread(FileMgr *fm, AbstractSocket *sock) {
         for (; ;) {
             try {
                 long l = sock->recv();
-                cerr << "ACK: Acknowledgement received for timestamp " << l << "\n";
+                if (CAMERA_DEBUG) { 
+                    cerr << "ACK: Acknowledgement received for timestamp " << l << "\n";
+                }
                 fm->ack(l);
             } catch (...) { return; }
         }
@@ -110,7 +117,7 @@ namespace COS518 {
     /* fails for any reason.  If maxUnacked is <= 0, there is no cap on the number */
     /* of items that will be left unacked at once.                                 */
     /*******************************************************************************/
-    void sendThread(FileMgr *fm, ClientSocket *sock, int id, int maxUnacked = 0) {        
+    void sendThread(FileMgr *fm, AbstractSocket *sock, int id, int maxUnacked = 0) {        
         long ts;
         char *buf;
         int len;
@@ -153,7 +160,9 @@ namespace COS518 {
             }
             
             // On success, add an entry to the AckSet and deallocate the buffer memory
-            cerr << "SEND: Picture " << ts << " successfully sent\n";
+            if (CAMERA_DEBUG) {
+                cerr << "SEND: Picture " << ts << " successfully sent\n";
+            }
             delete buf;
         }
     }
@@ -215,8 +224,8 @@ using namespace COS518;
 
 int main(int argc, char** argv) {
     // Return an error if an improper number of arguments are specified
-    if (argc != 4) {
-        cerr << "Usage: client [Unique ID] [Server URL] [Server Port]\n";
+    if (argc != 3) {
+        cerr << "Usage: camera [Unique ID] [Server Port]\n";
         return 1;
     }
   
@@ -239,19 +248,30 @@ int main(int argc, char** argv) {
 
     // Initialize datastructures
     FileMgr *fm = new FileMgr(dir);
-    ClientSocket *sock = new ClientSocket(argv[2], argv[3]);
+    Acceptor acpt(argv[2]);
+    if (CAMERA_DEBUG) {
+        cerr << "MAIN: Waiting to accept connection \n";
+    }
+    ServerSocket *sock = acpt.accept();
+    if (CAMERA_DEBUG) {
+        cerr << "MAIN: Accepted connection\n";
+    }
+    
   
     // Begin threads that are never supposed to crash (capture and load)
     thread load(loadMaster, dir, fm, 2, 2);
     thread capt(captureThread, dir, fm, timefile);
-    
   
     // Begin threads that crash if the socket closes
     for (; ;) {
         // Reopen the socket if it has closed
         while (!sock->isOpen()) {
             delete sock;
-            sock = new ClientSocket(argv[2], argv[3]);
+            if (CAMERA_DEBUG) {
+                cerr << "MAIN: Waiting for a connection\n";
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+            sock = acpt.accept();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
       

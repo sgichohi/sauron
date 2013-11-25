@@ -42,7 +42,7 @@ namespace COS518 {
 		socketOpen = true;
 	}
 	
-	ServerSocket Acceptor::accept() throw(int) {
+	ServerSocket *Acceptor::accept() throw(int) {
 	    if (!socketOpen) throw -1;
 	    
 	    struct sockaddr x;
@@ -54,7 +54,7 @@ namespace COS518 {
 	        throw -1;
 	    }
 
-	    return ServerSocket(newsock);    
+	    return new ServerSocket(newsock);    
     }
 
 	void Acceptor::close() {
