@@ -1,4 +1,4 @@
-import socket
+import  socket
 
 class CameraClient:
 	s = socket.socket()
