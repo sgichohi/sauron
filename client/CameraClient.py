@@ -31,12 +31,7 @@ class CameraClient:
 
 
 
-cam = CameraClient('127.0.0.1')
-i = 0
-print cam.Id()
-while True:
-	sth = cam.getResults()
-	print "got sth", cam.lastLamport()
+
 
 
 
