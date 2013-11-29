@@ -2,7 +2,11 @@
 #include "AbstractSocket.h"
 #include "ServerSocket.h"
 #include "UserDefined.h"
+#include "ThreadPool.h"
 #include <thread>
+#include <mutex>
+#include <queue>
+#include <functional>
 #include <chrono>
 #include <istream>
 #include <iostream>
@@ -45,12 +49,69 @@ namespace COS518 {
 	    
 	    return lamport;
 	}
+	
+	// A structure for storing the important information of each sendable
+	struct queueInfo {
+	    int ts;
+	    int score;
+	    char *buf;
+	    int  len;
+	};
     
-    void captureThread(string directory, FileMgr *fm, string timefile) {
+    // The thread that actually performs the capturing
+    void captureThread(string directory, FileMgr *fm, string timefile, int maxInQ) {
         long lamport = extendLamport(timefile, 1000);
         long limit   = lamport + 1000;
         Transformer trfm;
         
+        queue<queueInfo> *q = new queue<queueInfo>();
+        mutex *lock = new mutex();
+
+        // Declare a function for performing writing and enqueuing
+        function<void()> worker = [&directory, &q, &lock, fm, maxInQ]() {
+            for (; ;) {
+                // If there is nothing on the queue, sleep and try again
+                lock->lock();
+                if (q->empty()) {
+                    lock->unlock();
+	                this_thread::sleep_for(chrono::milliseconds(100));
+	            }
+	            // If there is something on the queue, process it
+	            else {
+	                // Remove an item from the queue
+	                queueInfo qi = q->front();
+	                q->pop();
+	                lock->unlock();
+	                
+	                // Build the path to the file
+                    stringstream ss;
+                    ss << qi.ts << "-" << qi.score << ".jpg";
+                    string filename = ss.str();
+                    string path = directory + "/" + filename;
+                	                
+	                // Write the information to a file
+	                FILE *file = fopen(path.c_str(), "wb");
+	                fwrite(qi.buf, 1, qi.len, file);
+	                fclose(file);
+	                
+                    // Insert the sendable object into the FileMgr
+                    if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
+                    if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
+                        fm->enqueue(qi.ts, qi.buf, qi.len, filename);
+                        if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
+                    } else {
+                        fm->insert(qi.ts, qi.score, filename);
+                        if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
+                        delete qi.buf;
+                    }
+                }
+            }
+        };
+	                                 
+        // A threadpool to manage workers
+        ThreadPool tp(worker, 10);
+        
+        // Infinite loop for capturing pictures
         for (; ; lamport++) {
             // Capture a new picture
             char *pic = (char *)"hello!"; // Replace
@@ -63,30 +124,23 @@ namespace COS518 {
 		        if (lamport >= limit) {
 		            lamport = extendLamport(timefile, 1000);
 		            limit   = lamport + 1000;
-		        } 
-                
-                // Create a filename for the sendable
-                stringstream ss;
-                ss << lamport << "-" << trfm.current()->score() << ".jpg";
-                string filename = ss.str();
-                string path = directory + "/" + filename;
-                
-                // Save the sendable to a file with a unique name
-                int outlen = 0;
-                char *towrite = trfm.current()->serialize(&outlen);
-                FILE *file = fopen(path.c_str(), "wb");
-                fwrite(towrite, 1, outlen, file);
-                fclose(file);
-                delete towrite;
-                
-                // Insert the sendable object into the FileMgr
-                fm->insert(lamport, trfm.current()->score(), filename);
-	            if (CAMERA_DEBUG) {
-	                cerr << "CAPTURE: generated file " << filename << "\n";
-	                this_thread::sleep_for(chrono::milliseconds(1000));
-	            }
-	        } 
+		        }
+		        
+		        // Create a queueInfo
+		        queueInfo qi;
+		        qi.ts = lamport;
+		        qi.score = trfm.current()->score();
+		        qi.buf = trfm.current()->serialize(&qi.len);
+		        
+		        // Enqueue it
+		        lock->lock();
+		        q->push(qi);
+		        lock->unlock();
+	        }
+	        if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
 		}
+		delete q;
+		delete lock;
     }
     
     /*******************************************************************************/
@@ -174,49 +228,30 @@ namespace COS518 {
     /* memory, adding them to the ByteQueue with their metadata. Each worker adds  */
     /* a single picture.                                                           */
     /*******************************************************************************/
+    void loadPool(FileMgr *fm, int maxInFlight, int maxInQ) {
     
-    // Enum for keeping track of thread state
-    enum { NOT_IN_USE, IN_FLIGHT, FINISHED};
-    
-    void loadThread(FileMgr *fm, int *status) {
-        try { fm->nextToQueue(); } catch (...) { }
-        *status = FINISHED;
-    }
-
-    // Manages a pool of loadThreads
-    void loadMaster(string dir, FileMgr *fm, int maxInFlight, int maxInQ) {
-        // Initialize thread-tracking information
-        thread ts[maxInFlight];
-        int inFlight = 0;
-        int status[maxInFlight];
-        for (int i = 0; i < maxInFlight; i++) status[i] = NOT_IN_USE;
-        
-        // Spin off worker threads
-        for (; ;) {
-            // Transmit as many pictures as possible
-            for (int i = 0; i < maxInFlight; i++) {
-                // Reap if finished
-                if (status[i] == FINISHED) {
-                    status[i] = NOT_IN_USE;
-                    ts[i].join();
-                    inFlight--;
-                }
-                
-                // Place another thread in flight if possible
-                while (status[i] == NOT_IN_USE) {
-                    if (inFlight < maxInFlight &&
-                        fm->queueSize() + inFlight < maxInQ &&
-                        !fm->heapIsEmpty())
-                    {
-                            status[i] = IN_FLIGHT;
-                            ts[i] = thread(loadThread, fm, status + i);
-                            inFlight++;
-                    } else {
-                        this_thread::sleep_for(chrono::milliseconds(100));
+        // Declare a lambda to load the queue
+        function<void()> f = [fm, &maxInQ]() {
+            // Sleep if the queue is currently full
+            for (; ;) {
+                if (fm->queueSize() >= maxInQ) {
+                    this_thread::sleep_for(chrono::milliseconds(100));
+                } else {
+                    try {
+                        fm->nextToQueue();
+                        
+                        if (CAMERA_DEBUG) {
+                            cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
+                        }
                     }
+                    catch (...) { this_thread::sleep_for(chrono::milliseconds(100)); }
                 }
-            }     
-        }
+            }
+        };
+        
+        // Create a threadpool for queueing
+        ThreadPool tp(f, maxInFlight);
+        tp.join();
     }
 }
 
@@ -256,11 +291,10 @@ int main(int argc, char** argv) {
     if (CAMERA_DEBUG) {
         cerr << "MAIN: Accepted connection\n";
     }
-    
   
     // Begin threads that are never supposed to crash (capture and load)
-    thread load(loadMaster, dir, fm, 2, 2);
-    thread capt(captureThread, dir, fm, timefile);
+    thread load(loadPool, fm, 2, 2);
+    thread capt(captureThread, dir, fm, timefile, 2);
   
     // Begin threads that crash if the socket closes
     for (; ;) {
