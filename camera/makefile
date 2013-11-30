@@ -7,6 +7,9 @@ CCFLAGS = -Wall -std=gnu++11 -pthread -O3 -D_GLIBCXX_USE_NANOSLEEP
 #------------------------------------------------
 # Build camera .o files
 #------------------------------------------------
+ThreadPool.o : ThreadPool.h ThreadPool.cpp
+	$(CC) $(CCFLAGS) -c ThreadPool.cpp
+	
 UserDefined.o : UserDefined.h UserDefined.cpp
 	$(CC) $(CCFLAGS) -c UserDefined.cpp
 	
@@ -25,7 +28,7 @@ ServerSocket.o : AbstractSocket.h  ServerSocket.h ServerSocket.cpp
 Util.o : Util.h Util.cpp
 	$(CC) $(CCFLAGS) -c Util.cpp
 
-camera.o : AbstractSocket.h ServerSocket.h Entry.h FileMgr.h UserDefined.h Util.h camera.cpp
+camera.o : AbstractSocket.h ThreadPool.h ServerSocket.h Entry.h FileMgr.h UserDefined.h Util.h camera.cpp
 	$(CC) $(CCFLAGS) -c camera.cpp
 
 #------------------------------------------------
@@ -41,7 +44,7 @@ recipient.o : ClientSocket.h recipient.cpp
 #------------------------------------------------
 # Build binaries
 #------------------------------------------------
-CAMERA_DEPS = FileMgr.o Entry.o ServerSocket.o AbstractSocket.o Util.o UserDefined.o camera.o
+CAMERA_DEPS = FileMgr.o Entry.o ThreadPool.o ServerSocket.o AbstractSocket.o Util.o UserDefined.o camera.o
 camera : $(CAMERA_DEPS)
 	$(CC) $(CCFLAGS) $(CAMERA_DEPS) -o camera
 

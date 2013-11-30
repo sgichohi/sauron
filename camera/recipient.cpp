@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
         while (!s->isOpen()) {
             delete s;
             s = new ClientSocket(argv[1], argv[2]);
+	        this_thread::sleep_for(chrono::milliseconds(1000));
         }
 
         long id = s->recv();
