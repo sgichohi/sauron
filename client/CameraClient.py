@@ -4,7 +4,7 @@ class CameraClient:
 	s = socket.socket()
 	cam_id = -1
 	last_lamport = 0
-	def __init__(self, host, port=5001):
+	def __init__(self, host, port=5000):
 		#self.s = socket.socket()
 		self.s.connect((host, port))
 	#receive the camera's unique ID
