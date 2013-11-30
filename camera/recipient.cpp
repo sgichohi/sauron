@@ -29,7 +29,11 @@ int main(int argc, char **argv) {
             s = new ClientSocket(argv[1], argv[2]);
 	        this_thread::sleep_for(chrono::milliseconds(1000));
         }
-
+        
+        char long_len;
+        s->recv(&long_len, 1);
+        cerr << "long_len: " << int(long_len) << "\n";
+        
         long id = s->recv();
         cerr << "id: " << id << "\n";
         

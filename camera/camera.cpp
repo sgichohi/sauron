@@ -185,7 +185,11 @@ namespace COS518 {
         string filename;
         
         // Send the client's ID number to the server.  Crash the thread on failure.
-        try { sock->send((long)id); } catch(...) { return; }
+        char long_size = (char) sizeof(long);
+        try {
+          sock->send(&long_size, 1);
+          sock->send((long)id);
+        } catch(...) { return; }
         
         // Loop forever sending items from the FileManager's queue
         for (; ;) {
