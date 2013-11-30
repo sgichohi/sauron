@@ -8,22 +8,24 @@ class CameraClient:
 		#self.s = socket.socket()
 		self.s.connect((host, port))
 	#receive the camera's unique ID
-		self.cam_id = self.leUnpack(self.s.recv(4))
+		self.cam_id = self.leUnpack(self.s.recv(8))
 	def Id(self):
 		return self.cam_id
 	def lastLamport(self):
 		return self.last_lamport
 	def getResults(self):
-		lamport_time = self.s.recv(4)
+		lamport_time = self.s.recv(8)
 		last_lamport = self.leUnpack(lamport_time)
 		self.last_lamport = last_lamport
-		sendable_len = self.leUnpack(self.s.recv(4))
+		sendable_len = self.leUnpack(self.s.recv(8))
 		self.s.send(str(last_lamport))
 		return self.s.recv(sendable_len)
 	def leUnpack(self, byte):
 		print len(byte)
     		""" Converts byte string to integer. Use Little-endian byte order."""
-		return struct.unpack("<L", byte)[0]
+		return sum([
+                ord(b) << (8 * i) for i, b in enumerate(byte)
+                    ])
 	def __del__ (self):
 		self.s.close()
 
