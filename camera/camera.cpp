@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <condition_variable>
 #include <functional>
 #include <chrono>
 #include <istream>
@@ -69,42 +70,48 @@ namespace COS518 {
 
         // Declare a function for performing writing and enqueuing
         function<void()> worker = [&directory, &q, &lock, fm, maxInQ]() {
+            
             for (; ;) {
                 // If there is nothing on the queue, sleep and try again
                 lock->lock();
                 if (q->empty()) {
                     lock->unlock();
-	                this_thread::sleep_for(chrono::milliseconds(100));
-	            }
-	            // If there is something on the queue, process it
-	            else {
-	                // Remove an item from the queue
-	                queueInfo qi = q->front();
-	                q->pop();
-	                lock->unlock();
-	                
-	                // Build the path to the file
-                    stringstream ss;
-                    ss << qi.ts << "-" << qi.score << ".jpg";
-                    string filename = ss.str();
-                    string path = directory + "/" + filename;
-                	                
-	                // Write the information to a file
-	                FILE *file = fopen(path.c_str(), "wb");
-	                fwrite(qi.buf, 1, qi.len, file);
-	                fclose(file);
-	                
-                    // Insert the sendable object into the FileMgr
-                    if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
-                    if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
-                        fm->enqueue(qi.ts, qi.buf, qi.len, filename);
-                        if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
-                    } else {
-                        fm->insert(qi.ts, qi.score, filename);
-                        if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
-                        delete qi.buf;
-                    }
+                    this_thread::sleep_for(chrono::milliseconds(100));
                 }
+                
+                // Process the next item on the queue
+                else {   
+		            queueInfo qi = q->front();
+		            q->pop();
+		            lock->unlock();
+		            
+		            // Build the path to the file
+		            stringstream ss;
+		            ss << qi.ts << "-" << qi.score << ".jpg";
+		            string filename = ss.str();
+		            string path = directory + "/" + filename;
+		        	                
+		            // Write the information to a file
+		            FILE *file = fopen(path.c_str(), "wb");
+		            fwrite(qi.buf, 1, qi.len, file);
+		            fclose(file);
+		            
+		            // Insert the sendable object into the FileMgr
+		            if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
+		            
+		            // If the heap is empty, take the fast path
+		            if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
+		                fm->enqueue(qi.ts, qi.buf, qi.len, filename);
+		                if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
+		            }
+		            
+		            // Otherwise, add the information to the heap
+		            else {
+		                fm->insert(qi.ts, qi.score, filename);
+		                if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
+		                delete qi.buf;
+		            }
+		        }
             }
         };
 	                                 
