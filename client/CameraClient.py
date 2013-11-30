@@ -9,7 +9,7 @@ class CameraClient:
 		#self.s = socket.socket()
 		self.s.connect((host, port))
 	#receive the camera's unique ID
-		self.long_size = int(self.s.recv(1))
+		self.long_size = self.leUnpack(self.s.recv(1))
 		self.cam_id = self.leUnpack(self.s.recv(self.long_size))
 	def Id(self):
 		return self.cam_id
@@ -23,7 +23,6 @@ class CameraClient:
 		self.s.send(str(last_lamport))
 		return self.s.recv(sendable_len)
 	def leUnpack(self, byte):
-		print len(byte)
     		""" Converts byte string to integer. Use Little-endian byte order."""
 		return sum([
                 ord(b) << (8 * i) for i, b in enumerate(byte)
