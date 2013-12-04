@@ -1,4 +1,6 @@
 #include "ClientSocket.h"
+#include "UserDefined.h"
+
 #include <thread>
 #include <chrono>
 #include <istream>
@@ -10,7 +12,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 using namespace std;
+using namespace cv;
+using namespace UserDefined;
 using namespace COS518;
 
 int main(int argc, char **argv) {
@@ -53,6 +60,10 @@ int main(int argc, char **argv) {
             char b[len];
             try { s->recv(b, len); } catch (...) { continue; }
             
+            Sendable sendable(b);
+
+            Mat pic = sendable.getPic();
+            
             stringstream ss;
             ss <<  id << "/" << ts << ".jpg";
             
@@ -60,10 +71,8 @@ int main(int argc, char **argv) {
             
             cerr << "received: " << filename << "\n" << len << "bytes\n";
             
-            FILE *file = fopen(filename.c_str(), "wb");
-            fwrite(b, 1, len, file);
-            fclose(file);
-            
+            imwrite(filename, pic);
+
             try {
            	    s->send(ts);
            	} catch (...) { continue; }

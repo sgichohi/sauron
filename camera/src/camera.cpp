@@ -3,24 +3,30 @@
 #include "ServerSocket.h"
 #include "UserDefined.h"
 #include "ThreadPool.h"
-#include <thread>
+
+#include <cerrno>
+#include <chrono>
+#include <condition_variable>
+#include <cstring>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <istream>
 #include <mutex>
 #include <queue>
-#include <condition_variable>
-#include <functional>
-#include <chrono>
-#include <istream>
-#include <iostream>
-#include <fstream>
-#include <cerrno>
-#include <cstring>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <thread>
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 #define CAMERA_DEBUG 1
 
 using namespace std;
 using namespace UserDefined;
+using namespace cv;
 
 namespace COS518 {
     /*******************************************************************************/
@@ -38,7 +44,9 @@ namespace COS518 {
 	    
 	    // Read timestamp file
 	    FILE* fp = fopen(timefile.c_str(), "rb");
-	    fread(buf, 1, 100, fp);
+	    if (!fread(buf, 1, 100, fp)) {
+              cerr << "fread failed";
+            }
 	    fclose(fp);
 	    
 	    // Write timestamp file
@@ -117,16 +125,22 @@ namespace COS518 {
 	                                 
         // A threadpool to manage workers
         ThreadPool tp(worker, 10);
+
+        VideoCapture cap(0);
+        if (!cap.isOpened()) {
+          cerr << "Cannot access the webcam, VideoCapture initialization failed.\n";
+        }
         
+        Mat pic; 
+
         // Infinite loop for capturing pictures
         for (; ; lamport++) {
             // Capture a new picture
-            char *pic = (char *)"hello!"; // Replace
-            int   len = 7; // Replace
+            cap >> pic;
             long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
            
             // Retrieve sendables to place in the FileMgr
-            for (trfm.begin(pic, len, ts); !trfm.finished(); trfm.next()) {
+            for (trfm.begin(pic, ts); !trfm.finished(); trfm.next()) {
                 // Update the lamport time if necessary
 		        if (lamport >= limit) {
 		            lamport = extendLamport(timefile, 1000);
@@ -136,7 +150,7 @@ namespace COS518 {
 		        // Create a queueInfo
 		        queueInfo qi;
 		        qi.ts = lamport;
-		        qi.score = trfm.current()->score();
+		        qi.score = trfm.current()->getScore();
 		        qi.buf = trfm.current()->serialize(&qi.len);
 		        
 		        // Enqueue it
@@ -314,10 +328,10 @@ int main(int argc, char** argv) {
             delete sock;
             if (CAMERA_DEBUG) {
                 cerr << "MAIN: Waiting for a connection\n";
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                this_thread::sleep_for(chrono::milliseconds(1000));
             }
             sock = acpt.accept();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            this_thread::sleep_for(chrono::milliseconds(100));
         }
       
         // Initialize the sender and acknowledgement threads
