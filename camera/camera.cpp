@@ -118,11 +118,22 @@ namespace COS518 {
         // A threadpool to manage workers
         ThreadPool tp(worker, 10);
         
+        // Temporarily use a real picture over and over again
+        ifstream is("pic.jpg", ifstream::binary);
+        is.seekg(0, ios::end);
+        int piclen = is.tellg();
+        is.seekg(0, ios::beg);
+        
+        // Retrieve the file into a QueueEntry
+        char *picbuf = new char[piclen];
+        is.read(picbuf, piclen);
+        is.close();
+        
         // Infinite loop for capturing pictures
         for (; ; lamport++) {
             // Capture a new picture
-            char *pic = (char *)"hello!"; // Replace
-            int   len = 7; // Replace
+            char *pic = (char *)picbuf; // Replace
+            int   len = piclen; // Replace
             long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
            
             // Retrieve sendables to place in the FileMgr
