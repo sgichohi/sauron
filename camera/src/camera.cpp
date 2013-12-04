@@ -132,7 +132,6 @@ namespace COS518 {
         }
         
         Mat pic; 
-
         // Infinite loop for capturing pictures
         for (; ; lamport++) {
             // Capture a new picture
