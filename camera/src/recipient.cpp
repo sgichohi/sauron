@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
             delete sendable;
             
             stringstream ss;
-            ss <<  id << "/" << ts << ".jpg";
+            ss <<  id << "/" << ts << "-" << sendable->getScore() << ".jpg";
             
             string filename = ss.str();
             

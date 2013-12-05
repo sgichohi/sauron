@@ -22,7 +22,7 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
-#define CAMERA_DEBUG 1
+#define CAMERA_DEBUG 0
 
 using namespace std;
 using namespace UserDefined;
@@ -139,13 +139,14 @@ namespace COS518 {
       long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
            
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
+
         // Update the lamport time if necessary
         if (lamport >= limit) {
           lamport = extendLamport(timefile, 1000);
           limit   = lamport + 1000;
         }
 		        
-        // Create a queueInfo
+        // Cppppppppreate a queueInfo
         queueInfo qi;
         qi.ts = lamport;
         qi.score = trfm->current()->getScore();
