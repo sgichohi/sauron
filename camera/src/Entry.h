@@ -1,7 +1,7 @@
 #ifndef ENTRY_H
 #define ENTRY_H
 
-#include "UserDefined.h"
+#include "UserInterface.h"
 #include <iostream>
 
 using namespace std;

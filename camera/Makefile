@@ -1,2 +1,2 @@
 all:
-	cd build && rm -rf * && cmake ../src && make
+	rm -rf build && mkdir build && cd build && cmake ../src && make

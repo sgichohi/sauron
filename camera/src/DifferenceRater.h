@@ -1,9 +1,24 @@
-#include "UserDefined.h"
+#ifndef DIFFERENCERATER_H
+#define DIFFERENCERATER_H
 
+#include "UserInterface.h"
 #include <opencv/cv.h>
 
 namespace UserDefined {
-  
+  class IdentityTransformer : public Transformer {
+  private:
+    Sendable *cur;
+    
+  public:
+    IdentityTransformer();
+    ~IdentityTransformer();
+
+    void begin(cv::Mat pic, long timestamp);
+    bool finished();
+    void next();
+    Sendable *current();
+  };
+
   class SendableMat : public Sendable {
   private:
     cv::Mat pic;
@@ -23,3 +38,5 @@ namespace UserDefined {
     ~SendableMat();
   };
 }
+
+#endif

@@ -1,5 +1,5 @@
-#include "UserDefined.h"
-#include "SendableMat.h"
+#include "DifferenceRater.h"
+#include "UserInterface.h"
 
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -12,6 +12,22 @@ using namespace cv;
 using namespace std;
 
 namespace UserDefined {
+  
+  /*******************************/
+  /* USER FACTORY IMPLEMENTATION */
+  /*******************************/
+
+  Sendable *UserFactory::getNewSendable() {
+    return new SendableMat();
+  }
+
+  Transformer *UserFactory::getNewTransformer() {
+    return new IdentityTransformer();
+  }
+
+  /*******************************/
+  /* SENDABLE MAT IMPLEMENTATION */
+  /*******************************/
 
   void SendableMat::initialize(Mat pic, long timestamp, long score) {
     this->score = score;
@@ -65,4 +81,31 @@ namespace UserDefined {
 
   SendableMat::SendableMat() {}
   SendableMat::~SendableMat() { pic.release(); }
+
+  /***************************************/
+  /* IDENTITY TRANSFORMER IMPLEMENTATION */
+  /***************************************/
+
+  IdentityTransformer::IdentityTransformer() { cur = NULL; }
+
+  // Destructor
+  IdentityTransformer::~IdentityTransformer() { if (cur != NULL) delete cur; }
+    
+  // Initialize the iterator
+  void IdentityTransformer::begin(Mat pic, long timestamp) {
+    SendableMat *sendable = new SendableMat();
+    sendable->initialize(pic, timestamp, timestamp);
+    cur = sendable;
+  }
+    
+  // Check whether the iterator is finished
+  bool IdentityTransformer::finished() { return (cur == NULL); }
+  
+  // Move the iterator to the next value
+  void IdentityTransformer::next() {
+    if (cur != NULL) delete cur;
+    cur = NULL;
+  }
+
+  Sendable *IdentityTransformer::current() { return cur; }
 }
