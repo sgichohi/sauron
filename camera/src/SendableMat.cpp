@@ -1,4 +1,5 @@
 #include "UserDefined.h"
+#include "SendableMat.h"
 
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -11,11 +12,8 @@ using namespace cv;
 using namespace std;
 
 namespace UserDefined {
-  /*******************************************************************************/
-  /* SENDABLE CLASS                                                              */
-  /*******************************************************************************/
-  // Constructor
-  Sendable::Sendable(Mat pic, long timestamp, long score) {
+
+  void SendableMat::initialize(Mat pic, long timestamp, long score) {
     this->score = score;
     this->timestamp = timestamp;
 
@@ -27,7 +25,7 @@ namespace UserDefined {
   }
     
   // Deserializer constructor
-  Sendable::Sendable(char *b) {
+  void SendableMat::initialize(char *b) {
     int inLength;
     memcpy(&inLength, b, sizeof(inLength));
 
@@ -48,7 +46,7 @@ namespace UserDefined {
   }
     
   // Serializer
-  char *Sendable::serialize(int *outLength) {
+  char *SendableMat::serialize(int *outLength) {
     vector<uchar> buf;
     imencode(".jpg", pic, buf);
 
@@ -63,43 +61,8 @@ namespace UserDefined {
     return b;
   }
     
-  long Sendable::getScore() { return score; }
+  Mat SendableMat::getPic() { return pic; }
 
-  Mat Sendable::getPic() { return pic; }
-
-  Sendable::~Sendable() {
-    pic.release();
-  }
-
-  
-  /*******************************************************************************/
-  /* TRANSFORMER CLASS                                                           */
-  /*******************************************************************************/
-  // Constructor
-  Transformer::Transformer() { cur = NULL; }
-
-  // Destructor
-  Transformer::~Transformer() { if (cur != NULL) delete cur; }
-    
-  // Initialize the iterator
-  void Transformer::begin(Mat pic, long timestamp) {
-    cur = NULL;
-        
-    if (timestamp < 0) return;
-        
-    cur = new Sendable(pic, timestamp, timestamp);
-  }
-    
-  // Check whether the iterator is finished
-  bool Transformer::finished() { return (cur == NULL); }
-    
-  // Move the iterator to the next value
-  void Transformer::next() {
-    if (cur != NULL) delete cur;
-    cur = NULL;
-  }
-    
-  // Return the current item in the iterator
-  Sendable *Transformer::current() { return cur; }
+  SendableMat::SendableMat() {}
+  SendableMat::~SendableMat() { pic.release(); }
 }
-    

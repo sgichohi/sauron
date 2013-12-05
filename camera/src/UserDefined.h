@@ -4,49 +4,49 @@
 #include <opencv/cv.h>
 
 namespace UserDefined {
-  class Sendable {
-  private:
-    long timestamp;
-    long score;
-    cv::Mat pic;
 
+  class Sendable {
   public:
     // Creates a new char[] with the object serialized; client must free the char *
-    char *serialize(int *outLength);
-        
+    virtual char *serialize(int *outLength) =0;
+
+    Sendable() {};
+    virtual ~Sendable() {};
+
     // Creates a new sendable from the provided information.  Copies the char* into
     // a new buffer.  len is the length of the char * provided.
-    Sendable(cv::Mat pic, long timestamp, long score);
+    virtual void initialize(cv::Mat pic, long timestamp, long score) =0;
         
     // creates a new sendable from the provided buffer created by a call to serialize.
     // Copies information out of the char*.  len is the length of the char*
-    Sendable(char *);
+    virtual void initialize(char *) =0;
         
-    ~Sendable();
-    long getScore();
-    cv::Mat getPic();
+    long getScore() { return score; }
+    long getTimestamp() { return timestamp; }
+
+  protected:
+    long score;
+    long timestamp;
   };
     
   class Transformer {
-  private:
-    Sendable *cur;
-        
   public:
-    // Initialize the iterator
-    void begin(cv::Mat pic, long timestamp);
+    // Constructor/Destructor for any datastructures the transformer needs
+    Transformer() {};
+    virtual ~Transformer() {};
+
+    // Initialize the iterator. Passes responsibility for the allocated memory
+    // to the Transformer.
+    virtual void begin(Sendable *sendable) =0;
         
     // A test to see whether the iteration is finished
-    bool finished();
+    virtual bool finished() =0;
         
     // Move the iterator to the next value
-    void next();
+    virtual void next() =0;
         
-    // Returns the current item in the iterator.  Iterator is responsible for freeing it.
-    Sendable *current();
-        
-    // Constructor/Destructor for any datastructures the transformer needs
-    Transformer();
-    ~Transformer();
+    // Returns the current item in the iterator. Caller is responsible for freeing it.
+    virtual Sendable *current() =0;
   };
 }
 #endif

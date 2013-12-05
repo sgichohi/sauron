@@ -1,5 +1,5 @@
 #include "ClientSocket.h"
-#include "UserDefined.h"
+#include "SendableMat.h"
 
 #include <thread>
 #include <chrono>
@@ -60,9 +60,12 @@ int main(int argc, char **argv) {
             char b[len];
             try { s->recv(b, len); } catch (...) { continue; }
             
-            Sendable sendable(b);
+            SendableMat *sendable = new SendableMat();
+            sendable->initialize(b);
 
-            Mat pic = sendable.getPic();
+            Mat pic = sendable->getPic();
+
+            delete sendable;
             
             stringstream ss;
             ss <<  id << "/" << ts << ".jpg";

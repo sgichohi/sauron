@@ -1,6 +1,8 @@
 #include "FileMgr.h"
 #include "AbstractSocket.h"
 #include "ServerSocket.h"
+#include "IdentityTransformer.h"
+#include "SendableMat.h"
 #include "UserDefined.h"
 #include "ThreadPool.h"
 
@@ -71,7 +73,7 @@ namespace COS518 {
     void captureThread(string directory, FileMgr *fm, string timefile, int maxInQ) {
         long lamport = extendLamport(timefile, 1000);
         long limit   = lamport + 1000;
-        Transformer trfm;
+        IdentityTransformer trfm;
         
         queue<queueInfo> *q = new queue<queueInfo>();
         mutex *lock = new mutex();
@@ -139,7 +141,9 @@ namespace COS518 {
             long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
            
             // Retrieve sendables to place in the FileMgr
-            for (trfm.begin(pic, ts); !trfm.finished(); trfm.next()) {
+            SendableMat *sendable = new SendableMat();
+            sendable->initialize(pic, ts, 0);
+            for (trfm.begin(sendable); !trfm.finished(); trfm.next()) {
                 // Update the lamport time if necessary
 		        if (lamport >= limit) {
 		            lamport = extendLamport(timefile, 1000);
