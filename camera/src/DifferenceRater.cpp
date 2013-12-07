@@ -2,6 +2,9 @@
 #include "UserInterface.h"
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/nonfree/features2d.hpp>
+#include <opencv2/legacy/legacy.hpp>
+
 #include <stdio.h>
 #include <string.h>
 
