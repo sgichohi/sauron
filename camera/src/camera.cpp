@@ -20,10 +20,6 @@
 #include <sys/types.h>
 #include <thread>
 
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
-
-
 #define CAMERA_DEBUG 0
 
 using namespace std;
@@ -161,8 +157,7 @@ namespace COS518 {
       if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
       long  ts2  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
       long used = ts2 - ts;
-      double fps = 1/(used / 1000);
-      cerr << "FPS: " << fps << "\n";
+      cerr << "used: " << used << "\n";
     }
     delete q;
     delete lock;

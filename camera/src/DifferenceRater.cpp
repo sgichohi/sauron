@@ -92,7 +92,8 @@ namespace UserDefined {
   DifferenceRater::DifferenceRater() {
     cur = NULL;
     full = false;
-    num_features = 1000;
+    num_features = 100;
+    scale = 0.5;
     detector = ORB(num_features);
   }
 
@@ -107,10 +108,12 @@ namespace UserDefined {
 
   // Initialize the iterator
   void DifferenceRater::begin(Mat pic, long timestamp) {
+    
     if (NULL == cur) {
 
-      Mat gray_frame;
-      cvtColor(pic, gray_frame, CV_BGR2GRAY);
+      Mat small_pic, gray_frame;
+      resize(pic, small_pic, Size(), scale, scale, INTER_NEAREST);
+      cvtColor(small_pic, gray_frame, CV_BGR2GRAY);
       equalizeHist(gray_frame, gray_frame);
 
       detector.detect(gray_frame, cur_keypoints);
@@ -126,8 +129,9 @@ namespace UserDefined {
       vector<KeyPoint> prev_keypoints = cur_keypoints;
       Mat prev_descriptors = cur_descriptors;
       
-      Mat gray_frame;
-      cvtColor(pic, gray_frame, CV_BGR2GRAY);
+      Mat small_pic, gray_frame;
+      resize(pic, small_pic, Size(), scale, scale, INTER_NEAREST);
+      cvtColor(small_pic, gray_frame, CV_BGR2GRAY);
       detector.detect(gray_frame, cur_keypoints);
       detector.compute(gray_frame, cur_keypoints, cur_descriptors);
 
@@ -147,8 +151,14 @@ namespace UserDefined {
       }
       float normalized_distance = sqrt(total_squared_distance) / sqrt(num_matches_to_consider);
       
+      vector<KeyPoint> scale_adjusted_keypoints;
+      for (vector<KeyPoint>::iterator it = cur_keypoints.begin(); it != cur_keypoints.end(); it++) {
+        Point2f pt(it->pt.x/scale, it->pt.y/scale);
+        scale_adjusted_keypoints.push_back(KeyPoint(pt, it->size));
+      }
+
       // Draw the keypoints, just for fun
-      drawKeypoints(pic, cur_keypoints, pic, Scalar(0, 0, 255));
+      drawKeypoints(pic, scale_adjusted_keypoints, pic, Scalar(0, 0, 255));
 
       long score = long(normalized_distance);
 

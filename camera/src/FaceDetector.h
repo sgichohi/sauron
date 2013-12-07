@@ -5,16 +5,18 @@
 
 #include <math.h>
 #include <opencv/cv.h>
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <algorithm>
 
 namespace UserDefined {
-  class SendableMat : public Sendable {
+  class SendableMats : public Sendable {
   private:
-    cv::Mat pic;
+  std::vector<cv::Mat> pics;
 
   public:
-    void initialize(cv::Mat pic, long timestamp, long score);
+    void initialize(std::vector<cv::Mat> pics, long timestamp, long score);
     
     // Deserializer constructor
     void initialize(char *b);
@@ -22,26 +24,21 @@ namespace UserDefined {
     // Serializer
     char *serialize(int *outLength);
     
-    const cv::Mat getPic();
+    const std::vector<cv::Mat> getPics();
 
-    SendableMat();
-    ~SendableMat();
+    SendableMats();
+    ~SendableMats();
   };
 
-  class DifferenceRater : public Transformer {
+  class FaceDetector : public Transformer {
   private:
+    SendableMats *cur;
     bool full;
-    SendableMat *cur;
-    std::vector<cv::KeyPoint> cur_keypoints;
-    cv::Mat cur_descriptors;
-
-    float scale;
-    int num_features;
-    cv::ORB detector;
+    cv::CascadeClassifier face_cascade;
     
   public:
-    DifferenceRater();
-    ~DifferenceRater();
+    FaceDetector();
+    ~FaceDetector();
 
     void begin(cv::Mat pic, long timestamp);
     bool finished();
