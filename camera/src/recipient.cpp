@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
         cerr << "id: " << id << "\n";
         
         stringstream sss;
-        sss << id;
+        sss << "client/Demo-Server/" << id;
         mkdir(sss.str().c_str(), 0755);
         
         

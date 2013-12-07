@@ -124,7 +124,7 @@ namespace COS518 {
     };
 	                                 
     // A threadpool to manage workers
-    ThreadPool tp(worker, 10);
+    ThreadPool tp(worker, 30);
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -318,8 +318,8 @@ int main(int argc, char** argv) {
   }
   
   // Begin threads that are never supposed to crash (capture and load)
-  thread load(loadPool, fm, 2, 2);
-  thread capt(captureThread, dir, fm, timefile, 2);
+  thread load(loadPool, fm, 30, 30);
+  thread capt(captureThread, dir, fm, timefile, 30);
   
   // Begin threads that crash if the socket closes
   for (; ;) {
