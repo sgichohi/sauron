@@ -5,13 +5,8 @@
 
 #include <math.h>
 #include <opencv/cv.h>
-#include <opencv2/nonfree/features2d.hpp>
-#include <opencv2/legacy/legacy.hpp>
 
 #include <algorithm>
-
-using namespace cv;
-using namespace std;
 
 namespace UserDefined {
   class SendableMat : public Sendable {
@@ -27,7 +22,7 @@ namespace UserDefined {
     // Serializer
     char *serialize(int *outLength);
     
-    cv::Mat getPic();
+    const cv::Mat getPic();
 
     SendableMat();
     ~SendableMat();
@@ -37,11 +32,11 @@ namespace UserDefined {
   private:
     bool full;
     SendableMat *cur;
-    vector<KeyPoint> cur_keypoints;
-    Mat cur_descriptors;
+    std::vector<cv::KeyPoint> cur_keypoints;
+    cv::Mat cur_descriptors;
 
     int num_features;
-    ORB detector;
+    cv::ORB detector;
     
   public:
     DifferenceRater();

@@ -3,6 +3,8 @@
 
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+#include <opencv2/nonfree/features2d.hpp>
+#include <opencv2/legacy/legacy.hpp>
 #include <stdio.h>
 #include <string.h>
 
@@ -78,14 +80,14 @@ namespace UserDefined {
     return b;
   }
     
-  Mat SendableMat::getPic() { return pic; }
+  const Mat SendableMat::getPic() { return pic; }
 
   SendableMat::SendableMat() {}
   SendableMat::~SendableMat() { pic.release(); }
 
-  /***************************************/
-  /* IDENTITY TRANSFORMER IMPLEMENTATION */
-  /***************************************/
+  /***********************************/
+  /* DIFFERENCE RATER IMPLEMENTATION */
+  /***********************************/
 
   DifferenceRater::DifferenceRater() {
     cur = NULL;
