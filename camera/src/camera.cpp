@@ -139,7 +139,6 @@ namespace COS518 {
       // Capture a new picture
       cap >> pic;
       long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
-           
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
         // Update the lamport time if necessary
@@ -148,7 +147,7 @@ namespace COS518 {
           limit   = lamport + 1000;
         }
 		        
-        // Cppppppppreate a queueInfo
+        // Create a queueInfo
         queueInfo qi;
         qi.ts = lamport;
         qi.score = trfm->current()->getScore();
@@ -160,6 +159,10 @@ namespace COS518 {
         lock->unlock();
       }
       if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
+      long  ts2  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+      long used = ts2 - ts;
+      double fps = 1/(used / 1000);
+      cerr << "FPS: " << fps << "\n";
     }
     delete q;
     delete lock;
