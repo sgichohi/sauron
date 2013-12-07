@@ -318,8 +318,8 @@ int main(int argc, char** argv) {
   }
   
   // Begin threads that are never supposed to crash (capture and load)
-  thread load(loadPool, fm, 30, 30);
-  thread capt(captureThread, dir, fm, timefile, 30);
+  thread load(loadPool, fm, 100, 100);
+  thread capt(captureThread, dir, fm, timefile, 100);
   
   // Begin threads that crash if the socket closes
   for (; ;) {

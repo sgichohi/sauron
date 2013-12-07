@@ -111,6 +111,8 @@ namespace UserDefined {
 
       Mat gray_frame;
       cvtColor(pic, gray_frame, CV_BGR2GRAY);
+      equalizeHist(gray_frame, gray_frame);
+
       detector.detect(gray_frame, cur_keypoints);
       detector.compute(gray_frame, cur_keypoints, cur_descriptors);
 
