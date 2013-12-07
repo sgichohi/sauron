@@ -12,8 +12,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 
 using namespace std;
 using namespace cv;

@@ -1,3 +1,4 @@
+#include <opencv2/opencv.hpp>
 #include "FileMgr.h"
 #include "AbstractSocket.h"
 #include "ServerSocket.h"
@@ -19,8 +20,9 @@
 #include <sys/types.h>
 #include <thread>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
+
 
 #define CAMERA_DEBUG 0
 
@@ -84,7 +86,7 @@ namespace COS518 {
         lock->lock();
         if (q->empty()) {
           lock->unlock();
-          this_thread::sleep_for(chrono::milliseconds(100));
+          //this_thread::sleep_for(chrono::milliseconds(100));
         }
                 
         // Process the next item on the queue
@@ -209,7 +211,7 @@ namespace COS518 {
     for (; ;) {
       // If the maximum number of items is currently outstanding, sleep
       while (maxUnacked > 0 && fm->ackSize() >= maxUnacked) {
-        this_thread::sleep_for(chrono::milliseconds(100));
+        //this_thread::sleep_for(chrono::milliseconds(100));
       }
             
       // Attempt to take a picture from the FileManager
@@ -218,7 +220,7 @@ namespace COS518 {
                 
         // On failure, sleep and try again
         catch (...) {
-          this_thread::sleep_for(chrono::milliseconds(100));
+          //this_thread::sleep_for(chrono::milliseconds(100));
           continue;
         }
                 
@@ -260,7 +262,7 @@ namespace COS518 {
       // Sleep if the queue is currently full
       for (; ;) {
         if (fm->queueSize() >= maxInQ) {
-          this_thread::sleep_for(chrono::milliseconds(100));
+          //this_thread::sleep_for(chrono::milliseconds(100));
         } else {
           try {
             fm->nextToQueue();
@@ -269,7 +271,8 @@ namespace COS518 {
               cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
             }
           }
-          catch (...) { this_thread::sleep_for(chrono::milliseconds(100)); }
+          catch (...) { //this_thread::sleep_for(chrono::milliseconds(100));
+          }
         }
       }
     };
@@ -319,7 +322,7 @@ int main(int argc, char** argv) {
   
   // Begin threads that are never supposed to crash (capture and load)
   thread load(loadPool, fm, 30, 30);
-  thread capt(captureThread, dir, fm, timefile, 30);
+  thread capt(captureThread, dir, fm, timefile, 200);
   
   // Begin threads that crash if the socket closes
   for (; ;) {
@@ -331,7 +334,7 @@ int main(int argc, char** argv) {
         this_thread::sleep_for(chrono::milliseconds(1000));
       }
       sock = acpt.accept();
-      this_thread::sleep_for(chrono::milliseconds(100));
+      //this_thread::sleep_for(chrono::milliseconds(100));
     }
       
     // Initialize the sender and acknowledgement threads
