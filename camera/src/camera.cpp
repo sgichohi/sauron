@@ -86,7 +86,7 @@ namespace COS518 {
         lock->lock();
         if (q->empty()) {
           lock->unlock();
-          this_thread::sleep_for(chrono::milliseconds(100));
+          //this_thread::sleep_for(chrono::milliseconds(100));
         }
                 
         // Process the next item on the queue
