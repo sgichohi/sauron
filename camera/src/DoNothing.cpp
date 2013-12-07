@@ -1,8 +1,9 @@
 #include "DoNothing.h"
 #include "UserInterface.h"
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 #include <stdio.h>
 #include <string.h>
 
