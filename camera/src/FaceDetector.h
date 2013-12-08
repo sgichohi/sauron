@@ -2,7 +2,7 @@
 #define DIFFERENCERATER_H
 
 #include "UserInterface.h"
-
+#include <opencv2/opencv.hpp>
 #include <math.h>
 #include <opencv/cv.h>
 #include <opencv2/objdetect/objdetect.hpp>
