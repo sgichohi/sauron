@@ -1,20 +1,19 @@
 #include "ClientSocket.h"
-#include "DifferenceRater.h"
+#include "usercode/SendableMat.h"
 
-#include <thread>
-#include <chrono>
-#include <istream>
-#include <iostream>
-#include <fstream>
-#include <cerrno>
-#include <cstring>
-#include <sstream>
+#include <opencv2/opencv.hpp>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <opencv2/opencv.hpp>
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
+#include <cerrno>
+#include <chrono>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <istream>
+#include <sstream>
+#include <thread>
 
 using namespace std;
 using namespace cv;
