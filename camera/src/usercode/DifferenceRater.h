@@ -1,32 +1,16 @@
 #ifndef DIFFERENCERATER_H
 #define DIFFERENCERATER_H
 
-#include "UserInterface.h"
+#include "SendableMat.h"
+#include "../UserInterface.h"
+
+#include <opencv2/opencv.hpp>
 
 #include <math.h>
-#include <opencv/cv.h>
 
 #include <algorithm>
 
 namespace UserDefined {
-  class SendableMat : public Sendable {
-  private:
-    cv::Mat pic;
-
-  public:
-    void initialize(cv::Mat pic, long timestamp, long score);
-    
-    // Deserializer constructor
-    void initialize(char *b);
-    
-    // Serializer
-    char *serialize(int *outLength);
-    
-    const cv::Mat getPic();
-
-    SendableMat();
-    ~SendableMat();
-  };
 
   class DifferenceRater : public Transformer {
   private:
