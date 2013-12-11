@@ -124,16 +124,17 @@ namespace COS518 {
     // A threadpool to manage workers
     ThreadPool tp(worker, 30);
 
-    VideoCapture cap(0);
+    /*VideoCapture cap(0);
     if (!cap.isOpened()) {
       cerr << "Cannot access the webcam, VideoCapture initialization failed.\n";
-    }
+    }*/
         
     Mat pic; 
     // Infinite loop for capturing pictures
     for (; ; lamport++) {
       // Capture a new picture
-      cap >> pic;
+      //cap >> pic;
+      pic = imread("image9.jpg");
       long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
