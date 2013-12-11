@@ -21,7 +21,7 @@ add_executable( camera_difference_rater camera.cpp FileMgr.cpp Entry.cpp
     usercode/DifferenceRater.cpp usercode/SendableMat.cpp )
 
 
-add_executable( recipient recipient.cpp ClientSocket.cpp
+add_executable( recipient recipient.cpp ClientSocket.cpp ThreadPool.cpp
   AbstractSocket.cpp Util.cpp usercode/SendableMat.cpp )
 
 # Tell CMake to link with opencv
