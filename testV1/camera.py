@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 
-direc ='sqlite:///image_store.db'
+direc ='sqlite:///build/image_store.db'
 
 def initialise():
 	print ("creating a database")
