@@ -1,42 +1,39 @@
 import cv2
-import os
 from utils import ensure_dir
 import time
-#print os.getcwd()
-def _saveImage(conn, frame):
+from models import CameraFrame
+
+def saveImage(conn, parent_dir, session):
     ensure_dir(parent_dir)
-    timestamp = int(time.time())
-    parent_dir 
-    fileLocation = parent_dir + "/" + 'raw_frame'  + str(timestamp) +  ' .jpg'
-
-    cv2.imwrite(fileLocation, frame)
+    count = 0L
+    while True:
+        timestamp = int(time.time())
+        fileLocation = parent_dir + 'raw_frame_' + str(count) + "_" + str(timestamp) +  '.jpg'
+        frame = conn.recv()
+        cv2.imwrite(fileLocation, frame)
+        fr = CameraFrame(location=fileLocation, lamport_time=count)
+        session.add(fr)
+        if count % 10 == 0:
+            session.commit()
+        count += 1
+    session.commit()
+    conn.close()
     
 
-
-
-def _grabFrame(conn):
-    #get image from default camera, can be trivially changed to multiple cameras
-    
-    
+def grabFrame(conn):
     cap = cv2.VideoCapture(0)
-    #print cap.get(cv2.cv.CV_CAP_PROP_FPS)
+    
     while(cap.isOpened()):
         ret, frame = cap.read()
-
         if ret==True:
-            #timestamp = int(time.time())
-            #fileLocation = parent_dir + "/" + 'raw_frame'  + str(timestamp) +  ' .jpg'
-            #cv2.imshow('frame',frame)
-            #if cv2.waitKey(1) & 0xFF == ord('q'):
-            #    break
-            
-            
+            conn.send(frame)
+            cv2.imshow('frame',frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+               break            
         else:
             break
-
     cap.release()
-
+    conn.close()
     cv2.destroyAllWindows()
 
 
-#record_video(os.getcwd() + "/" + "output/")

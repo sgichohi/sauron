@@ -25,10 +25,9 @@ class CameraFrame(Base):
  
 ########################################################################
 
-def initialise_database(direc):
-    
+def initialise_db(direc):
+
     engine = create_engine(direc, echo=True)
-    
     # create tables
     Base.metadata.create_all(engine)
    
