@@ -1,0 +1,17 @@
+Installing 
+
+pip install -r requirements.txt
+
+How to run:
+
+python camera.py
+
+TODO:
+
+Make the process model into function calls or imports 
+
+Define the ITransform and RTransform interfaces
+
+Design Docs:
+
+To be written
