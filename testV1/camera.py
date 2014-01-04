@@ -1,4 +1,4 @@
-from webserver import app
+from webserver import runWebserver
 from multiprocessing import Process, Pipe
 from models import initialise_db
 from capturepic import saveImage, grabFrame
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 	#Message passing between frame IO Loop and storing image
 	save_image, grab_frame = Pipe(False)
 	#start the webserver
-	webserver = Process(target=app.run, args=())
+	webserver = Process(target=runWebserver, args=())
 	#grab frames in one prcess
 	camera_listener = Process(target=grabFrame, args=(grab_frame,))
 	#store frames in another process
