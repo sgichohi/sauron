@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import Column, Date, Integer, BigInteger, String
 from sqlalchemy.ext.declarative import declarative_base
 import datetime
- 
+
 Base = declarative_base()
  
 ########################################################################
@@ -27,6 +27,7 @@ class CameraFrame(Base):
 
 def initialise_db(direc):
 
+    
     engine = create_engine(direc, echo=True)
     # create tables
     Base.metadata.create_all(engine)

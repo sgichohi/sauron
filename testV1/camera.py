@@ -4,6 +4,7 @@ from models import initialise_db
 from capturepic import saveImage, grabFrame
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from utils import ensure_dir
 import os
 
 
@@ -12,6 +13,7 @@ direc ='sqlite:///build/image_store.db'
 def initialise():
 	print ("creating a database")
 	#direc ='sqlite:///image_store.db'
+
 	initialise_db(direc)
 	
 
@@ -19,6 +21,7 @@ def initialise():
 
 
 if __name__ == "__main__":
+	ensure_dir(os.getcwd()  + "/build/")
 	initialise()
 	image_store = create_engine(direc)
 	Session = sessionmaker(bind=image_store)
