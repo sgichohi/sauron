@@ -43,29 +43,37 @@ struct QueueEntry {
 
 int main(int argc, char **argv) {
     // Validate command line arguments
-    if (argc != 3) {
-        cerr << "Usage: server [camera address] [camera port]\n";
+    if (argc < 3 || argc > 5) {
+        cerr << "Usage: server [camera address] [camera port] [optional: max sendables] [optional: benchmark skip]";
         return 1;
     }
     
-    // Create one condition variable
-    condition_variable has_item;
+    // Set a maximum number of sendables to receive
+    long max = 0;
+    long skip = 0;
+    if (argc >= 4) max = stol(argv[3]);
+    if (argc >= 5) skip = stol(argv[4]);
+
+    if (RECIPIENT_DEBUG) { cerr << "max: " << max << "\nskip: " << skip << "\n"; }
     
     // A queue and a lock for storing received bytearrays
     queue<QueueEntry> *q = new queue<QueueEntry>();
     mutex *lock = new mutex();
+    condition_variable has_item;
+    bool stop = false;
 
     // A worker thread for storing sendables to disk
-    function<void()> worker = [&q, &lock, &has_item]() {
-        for (; ;) {
-            // Check whether there are any entries in the queue and spin on the lock
+    function<void()> worker = [&q, &lock, &has_item, &stop]() {
+        for (;;) {
+            // Check whether there are any entries in the queue and wait on the cv
             unique_lock<mutex> ul(*lock);
-            has_item.wait(ul, [&q]() { return !q->empty(); });
+            has_item.wait(ul, [&q, &stop]() { return !q->empty() || stop; });
+            if (q->empty()) { ul.unlock(); return; }
 
             // Receive a char* from the queue
             QueueEntry qe = q->front();
             q->pop();
-            ul.release()->unlock();
+            ul.unlock();
             
             // Create a sendable from the char*
             SendableMat *sendable = new SendableMat();
@@ -119,7 +127,7 @@ int main(int argc, char **argv) {
         // Benchmarking metatdata
         long start, sent, oldbmark;
         if (BENCHMARK) {
-            start  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);       
+            start  = -1;    
 	        sent = 0;
 	        oldbmark = 0;
 	    }
@@ -127,6 +135,11 @@ int main(int argc, char **argv) {
         // Receive sendables
         while(s->isOpen()) {
             long ts, len;
+
+            if (BENCHMARK && sent < skip) {
+                start = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+                oldbmark = start;
+            }
             
             // Receive timestamp and length of the message
             try {
@@ -149,18 +162,27 @@ int main(int argc, char **argv) {
             unique_lock<mutex> ul(*lock);
             q->push(qe);
             has_item.notify_one();
-            ul.release()->unlock();
+            ul.unlock();
             
             // Send the ack
             try { s->send(ts); } catch (...) { continue; }
+            sent++;
             
             // Benchmark
-            if (BENCHMARK) {
-                sent++;
+            if (BENCHMARK && sent >= skip) {
                 long  bmark  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
                 cerr << "Average ms per Sendable: " << ((bmark - start)/sent) << "\n";
                 cerr << "Time for this Sendable: " << (bmark - oldbmark) << "\n";
                 oldbmark = bmark;
+            }
+
+			// Exit if the maximum number of sendables has been hit
+			if (max != 0 && sent == max) {
+                stop = true;
+                has_item.notify_all();
+                tp.join(); 
+                s->close();
+                exit(0);
             }
         }
         

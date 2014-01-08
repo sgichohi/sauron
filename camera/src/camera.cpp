@@ -1,4 +1,3 @@
-#include <opencv2/opencv.hpp>
 #include "FileMgr.h"
 #include "AbstractSocket.h"
 #include "ServerSocket.h"
@@ -15,10 +14,12 @@
 #include <istream>
 #include <mutex>
 #include <queue>
+#include <condition_variable>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <thread>
+#include <opencv2/opencv.hpp>
 
 #define CAMERA_DEBUG 0
 
@@ -73,50 +74,46 @@ namespace COS518 {
         
     queue<queueInfo> *q = new queue<queueInfo>();
     mutex *lock = new mutex();
+    condition_variable *cv = new condition_variable();
 
     // Declare a function for performing writing and enqueuing
-    function<void()> worker = [&directory, &q, &lock, fm, maxInQ]() {
+    function<void()> worker = [&directory, &q, &lock, fm, maxInQ, &cv]() {
             
       for (; ;) {
-        // If there is nothing on the queue, sleep and try again
-        lock->lock();
-        if (q->empty()) {
-          lock->unlock();
-          //this_thread::sleep_for(chrono::milliseconds(100));
-        }
-                
+        // Wait for the queue to have something in it
+        unique_lock<mutex> ul(*lock);
+        while (q->empty()) cv->wait(ul);
+	
         // Process the next item on the queue
-        else {   
-          queueInfo qi = q->front();
-          q->pop();
-          lock->unlock();
+        queueInfo qi = q->front();
+        q->pop();
+        ul.unlock();
 		            
-          // Build the path to the file
-          stringstream ss;
-          ss << qi.ts << "-" << qi.score << ".jpg";
-          string filename = ss.str();
-          string path = directory + "/" + filename;
-		        	                
-          // Write the information to a file
-          FILE *file = fopen(path.c_str(), "wb");
-          fwrite(qi.buf, 1, qi.len, file);
-          fclose(file);
-		            
-          // Insert the sendable object into the FileMgr
-          if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
-		            
-          // If the heap is empty, take the fast path
-          if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
-            fm->enqueue(qi.ts, qi.buf, qi.len, filename);
-            if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
-          }
-		            
-          // Otherwise, add the information to the heap
-          else {
-            fm->insert(qi.ts, qi.score, filename);
-            if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
-            delete qi.buf;
-          }
+        // Build the path to the file
+        stringstream ss;
+        ss << qi.ts << "-" << qi.score << ".jpg";
+        string filename = ss.str();
+        string path = directory + "/" + filename;
+	        	                
+        // Write the information to a file
+        FILE *file = fopen(path.c_str(), "wb");
+        fwrite(qi.buf, 1, qi.len, file);
+        fclose(file);
+	           
+        // Insert the sendable object into the FileMgr
+        if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
+	           
+        // If the heap is empty, take the fast path
+        if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
+          fm->enqueue(qi.ts, qi.buf, qi.len, filename);
+          if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
+        }
+	           
+        // Otherwise, add the information to the heap
+        else {
+          fm->insert(qi.ts, qi.score, filename);
+          if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
+          delete qi.buf;
         }
       }
     };
@@ -129,7 +126,8 @@ namespace COS518 {
       cerr << "Cannot access the webcam, VideoCapture initialization failed.\n";
     }
         
-    Mat pic; 
+    Mat pic;
+
     // Infinite loop for capturing pictures
     for (; ; lamport++) {
       // Capture a new picture
@@ -152,8 +150,10 @@ namespace COS518 {
         // Enqueue it
         lock->lock();
         q->push(qi);
+        cv->notify_one();
         lock->unlock();
       }
+
       if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
       long  ts2  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
       long used = ts2 - ts;
@@ -162,6 +162,7 @@ namespace COS518 {
     delete q;
     delete lock;
     delete trfm;
+    delete cv;
   }
     
   /*******************************************************************************/
@@ -192,7 +193,7 @@ namespace COS518 {
   /* fails for any reason.  If maxUnacked is <= 0, there is no cap on the number */
   /* of items that will be left unacked at once.                                 */
   /*******************************************************************************/
-  void sendThread(FileMgr *fm, AbstractSocket *sock, int id, int maxUnacked = 0) {        
+  void sendThread(FileMgr *fm, AbstractSocket *sock, int id) {        
     long ts;
     char *buf;
     int len;
@@ -207,20 +208,13 @@ namespace COS518 {
         
     // Loop forever sending items from the FileManager's queue
     for (; ;) {
-      // If the maximum number of items is currently outstanding, sleep
-      while (maxUnacked > 0 && fm->ackSize() >= maxUnacked) {
-        //this_thread::sleep_for(chrono::milliseconds(100));
-      }
             
       // Attempt to take a picture from the FileManager
       while (true) {
         try { buf = fm->nextToAcks(&ts, &len, filename); }
                 
-        // On failure, sleep and try again
-        catch (...) {
-          //this_thread::sleep_for(chrono::milliseconds(100));
-          continue;
-        }
+        // On failure, try again
+        catch (...) { continue; }
                 
         // On success, exit the loop
         break;
@@ -259,9 +253,7 @@ namespace COS518 {
     function<void()> f = [fm, &maxInQ]() {
       // Sleep if the queue is currently full
       for (; ;) {
-        if (fm->queueSize() >= maxInQ) {
-          //this_thread::sleep_for(chrono::milliseconds(100));
-        } else {
+        if (fm->queueSize() < maxInQ) {
           try {
             fm->nextToQueue();
                         
@@ -269,8 +261,7 @@ namespace COS518 {
               cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
             }
           }
-          catch (...) { //this_thread::sleep_for(chrono::milliseconds(100));
-          }
+          catch (...) { }
         }
       }
     };
@@ -326,17 +317,17 @@ int main(int argc, char** argv) {
   for (; ;) {
     // Reopen the socket if it has closed
     while (!sock->isOpen()) {
+      exit(0);
       delete sock;
       if (CAMERA_DEBUG) {
         cerr << "MAIN: Waiting for a connection\n";
         this_thread::sleep_for(chrono::milliseconds(1000));
       }
       sock = acpt.accept();
-      //this_thread::sleep_for(chrono::milliseconds(100));
     }
       
     // Initialize the sender and acknowledgement threads
-    thread send(sendThread, fm, sock, stoi(string(argv[1])), 0);
+    thread send(sendThread, fm, sock, stoi(string(argv[1])));
     thread acks(ackThread, fm, sock);
       
     // Both threads crash if the socket closes
