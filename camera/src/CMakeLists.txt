@@ -4,7 +4,7 @@ project(Camera)
 find_package( OpenCV REQUIRED )
 
 # Add the compiler flags
-SET( COMPILE_FLAGS "-Wall -std=gnu++11 -O3 -pthread -pg -D_GLIBCXX_USE_NANOSLEEP" )
+SET( COMPILE_FLAGS "-Wall -std=gnu++11 -O3 -pthread -D_GLIBCXX_USE_NANOSLEEP" )
 SET( CMAKE_CXX_FLAGS "${COMPILE_FLAGS}" )
 
 # Create the executables
