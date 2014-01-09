@@ -23,19 +23,23 @@ namespace COS518 {
         string dir;
         condition_variable *heap_empty;
         condition_variable *queue_empty;
+        condition_variable *queue_full;
+        condition_variable *ack_full;
         mutex *heapLock;
         mutex *queueLock;
         mutex *acksLock;
         priority_queue<HeapEntry> *pq;
         queue<QueueEntry>         *q;
         map<long, string>         *acks;
+        int queueMax;
+        int ackMax;
         
         HeapEntry parseName(string& dir, string& filename) throw(int);
         HeapEntry removeMax();
         
         // Public members
         public:
-        FileMgr(string dir) throw();
+        FileMgr(string dir, int qs, int as) throw();
        ~FileMgr();
        
         char *nextToAcks(long *ts, int *len, string&);

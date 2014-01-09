@@ -66,13 +66,12 @@ namespace COS518 {
     int  FileMgr::queueSize()    { return q->size();  }
     
     void FileMgr::enqueue(long ts, char *buf, int len, string filename) {
-        // Acquire the lock and add the items to the queue
-        queueLock->lock();
         QueueEntry qe(ts, buf, len, filename);
-        q->push(qe);
+        unique_lock<mutex> ul(*queueLock);
+        if ((int)q->size() >= queueMax) queue_full->wait(ul);
 
-        // Release the lock and notify the monitor
-        queueLock->unlock();
+        q->push(qe);
+        ul.unlock();
         queue_empty->notify_one();
     }        
     
@@ -118,6 +117,9 @@ namespace COS518 {
         QueueEntry qe = q->front();
         q->pop();
         ul.unlock();
+
+        // Notify queue_full
+        queue_full->notify_one();
         
         // Prepare the output information
         *ts = qe.getTimestamp();
@@ -125,9 +127,11 @@ namespace COS518 {
         filename = qe.getFilename();
         
         // Add to the ack map
-        acksLock->lock();
+        unique_lock<mutex> ul2(*acksLock);
+        while((int)acks->size() >= ackMax) ack_full->wait(ul2);
+        
         acks->insert(make_pair(*ts, filename));
-        acksLock->unlock();
+        ul2.unlock();
         
         return out;
     }
@@ -138,6 +142,7 @@ namespace COS518 {
             string path = dir + "/" + acks->at(ts);
             acks->erase(ts);
             acksLock->unlock();
+            ack_full->notify_one();
             
             remove(path.c_str());
         } catch (...) { acksLock->unlock(); }
@@ -148,13 +153,17 @@ namespace COS518 {
     /*******************************************************************************/
     /* CONSTRUCTOR                                                                 */
     /*******************************************************************************/
-    FileMgr::FileMgr(string directory) throw() {
+    FileMgr::FileMgr(string directory, int qs, int as) throw() {
         acks = new map<long, string>;
         q    = new queue<QueueEntry>();
         pq   = new priority_queue<HeapEntry>();
+        queueMax = qs;
+        ackMax = as;
 
         heap_empty  = new condition_variable();
         queue_empty = new condition_variable();
+        queue_full  = new condition_variable();
+        ack_full    = new condition_variable();
         
         heapLock  = new mutex();
         queueLock = new mutex();
@@ -192,5 +201,7 @@ namespace COS518 {
         delete acksLock;
         delete heap_empty;
         delete queue_empty;
+        delete queue_full;
+        delete ack_full;
     }
 }

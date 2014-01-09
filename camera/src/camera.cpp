@@ -66,7 +66,7 @@ namespace COS518 {
   };
     
   // The thread that actually performs the capturing
-  void captureThread(string directory, FileMgr *fm, string timefile, int maxInQ) {
+  void captureThread(string directory, FileMgr *fm, string timefile, int maxInQ, int max) {
     long lamport = extendLamport(timefile, 1000);
     long limit   = lamport + 1000;
     Transformer *trfm = UserFactory::getFactory().getNewTransformer();
@@ -111,11 +111,12 @@ namespace COS518 {
           if (verbose) cerr << "slow path " << filename << "\n";
           delete qi.buf;
         }
+        
       }
     };
 	                                 
     // A threadpool to manage workers
-    ThreadPool tp(worker, 20);
+    ThreadPool tp(worker, 4);
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -123,12 +124,12 @@ namespace COS518 {
     }
         
     Mat pic;
+    long ts = 0;
 
     // Infinite loop for capturing pictures
     for (; ; lamport++) {
       // Capture a new picture
       cap >> pic;
-      long  ts  = now();
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
         // Update the lamport time if necessary
@@ -146,14 +147,23 @@ namespace COS518 {
         // Enqueue it
         lock->lock();
         q->push(qi);
-        cv->notify_one();
         lock->unlock();
+        cv->notify_one();
       }
 
-      if (verbose) this_thread::sleep_for(chrono::milliseconds(1000));
       long  ts2  = now();
       long used = ts2 - ts;
+      ts = ts2;
       cerr << "used: " << used << "\n";
+
+      if (max > 0) {
+          max--;
+          if (max <= 0) {
+              cerr << "Exiting...";
+              this_thread::sleep_for(chrono::milliseconds(3000));
+              exit(0);
+          }
+      }
     }
     delete q;
     delete lock;
@@ -221,8 +231,8 @@ namespace COS518 {
       }
             
       // On success, add an entry to the AckSet and deallocate the buffer memory
-      if (verbose) {
-        cerr << "SEND: Picture " << ts << " successfully sent\n";
+      if (verbose || 1) {
+        cerr << "SEND: Picture successfully sent " << fm->queueSize() << " " << fm->ackSize() << "\n";
       }
       delete buf;
     }
@@ -235,24 +245,22 @@ namespace COS518 {
   /* memory, adding them to the ByteQueue with their metadata. Each worker adds  */
   /* a single picture.                                                           */
   /*******************************************************************************/
-  void loadPool(FileMgr *fm, int maxInFlight, int maxInQ) {
+  void loadPool(FileMgr *fm) {
     
     // Declare a lambda to load the queue
-    function<void()> f = [fm, &maxInQ]() {
+    function<void()> f = [fm]() {
       // Sleep if the queue is currently full
       for (; ;) {
-        if (fm->queueSize() < maxInQ) {
           fm->nextToQueue();
                         
           if (verbose) {
             cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
           }
-        }
       }
     };
         
     // Create a threadpool for queueing
-    ThreadPool tp(f, maxInFlight);
+    ThreadPool tp(f, 30);
     tp.join();
   }
 }
@@ -272,12 +280,14 @@ int main(int argc, char** argv) {
   string cfg = "config";
   string timefile = cfg + "/time.txt";
   bool reconnect = false;
+  int max = -1;
 
   // Handle command line flags
   for (int i = 2; i < argc; i++) {
     string str(argv[i]);
     if (str == "-v" || str == "--verbose") verbose = true; 
-    if (str == "-r" || str == "--reconnect") reconnect = true;   
+    if (str == "-r" || str == "--reconnect") reconnect = true;
+    if (str == "-m" || str == "--max") max = stoi(argv[++i]);
   }  
   
   // Create directories as necessary
@@ -295,7 +305,7 @@ int main(int argc, char** argv) {
   }
 
   // Initialize datastructures
-  FileMgr *fm = new FileMgr(dir);
+  FileMgr *fm = new FileMgr(dir, 30, 100);
   Acceptor acpt(argv[2]);
   if (verbose) {
     cerr << "MAIN: Waiting to accept connection \n";
@@ -306,8 +316,8 @@ int main(int argc, char** argv) {
   }
   
   // Begin threads that are never supposed to crash (capture and load)
-  thread load(loadPool, fm, 30, 30);
-  thread capt(captureThread, dir, fm, timefile, 200);
+  thread load(loadPool, fm);
+  thread capt(captureThread, dir, fm, timefile, 30, max);
   
   // Begin threads that crash if the socket closes
   for (; ;) {
