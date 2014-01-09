@@ -1,6 +1,7 @@
 #include "ClientSocket.h"
 #include "usercode/SendableMat.h"
 #include "ThreadPool.h"
+#include "Util.h"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -167,10 +168,10 @@ int main(int argc, char **argv) {
             
             // Benchmark
             if (benchmark && sent == skip) {
-                start = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+                start = now();
                 oldbmark = start;
             } else if (benchmark && sent > skip) {
-                long  bmark  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+                long  bmark  = now();
                 cerr << "Average ms per Sendable: " << ((bmark - start)/(sent - skip)) << "\n";
                 cerr << "Time for this Sendable: " << (bmark - oldbmark) << "\n";
                 oldbmark = bmark;

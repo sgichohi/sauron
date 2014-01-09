@@ -3,6 +3,7 @@
 #include "ServerSocket.h"
 #include "UserInterface.h"
 #include "ThreadPool.h"
+#include "Util.h"
 
 #include <cerrno>
 #include <chrono>
@@ -21,7 +22,7 @@
 #include <thread>
 #include <opencv2/opencv.hpp>
 
-#define CAMERA_DEBUG 0
+bool verbose = false;
 
 using namespace std;
 using namespace UserDefined;
@@ -43,9 +44,7 @@ namespace COS518 {
 	    
     // Read timestamp file
     FILE* fp = fopen(timefile.c_str(), "rb");
-    if (!fread(buf, 1, 100, fp)) {
-      cerr << "fread failed";
-    }
+    if (!fread(buf, 1, 100, fp));
     fclose(fp);
 	    
     // Write timestamp file
@@ -78,7 +77,6 @@ namespace COS518 {
 
     // Declare a function for performing writing and enqueuing
     function<void()> worker = [&directory, &q, &lock, fm, maxInQ, &cv]() {
-
       for (; ;) {
         // Wait for the queue to have something in it
         unique_lock<mutex> ul(*lock);
@@ -99,18 +97,18 @@ namespace COS518 {
         FILE *file = fopen(path.c_str(), "wb");
         fwrite(qi.buf, 1, qi.len, file);
         fclose(file);
-        if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
+        if (verbose) cerr << "CAPTURE: " << this_thread::get_id() << " ";
 	           
         // If the heap is empty, take the fast path
         if (fm->heapSize() == 0 && fm->queueSize() < maxInQ) {
           fm->enqueue(qi.ts, qi.buf, qi.len, filename);
-          if (CAMERA_DEBUG) cerr << "fast path " << filename << "\n";
+          if (verbose) cerr << "fast path " << filename << "\n";
         }
 	           
         // Otherwise, add the information to the heap
         else {
           fm->insert(qi.ts, qi.score, filename);
-          if (CAMERA_DEBUG) cerr << "slow path " << filename << "\n";
+          if (verbose) cerr << "slow path " << filename << "\n";
           delete qi.buf;
         }
       }
@@ -130,7 +128,7 @@ namespace COS518 {
     for (; ; lamport++) {
       // Capture a new picture
       cap >> pic;
-      long  ts  = Util::now();
+      long  ts  = now();
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
         // Update the lamport time if necessary
@@ -152,8 +150,8 @@ namespace COS518 {
         lock->unlock();
       }
 
-      if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
-      long  ts2  = Util::now();
+      if (verbose) this_thread::sleep_for(chrono::milliseconds(1000));
+      long  ts2  = now();
       long used = ts2 - ts;
       cerr << "used: " << used << "\n";
     }
@@ -174,7 +172,7 @@ namespace COS518 {
     for (; ;) {
       try {
         long l = sock->recv();
-        if (CAMERA_DEBUG) { 
+        if (verbose) { 
           cerr << "ACK: Acknowledgement received for timestamp " << l << "\n";
         }
         fm->ack(l);
@@ -223,7 +221,7 @@ namespace COS518 {
       }
             
       // On success, add an entry to the AckSet and deallocate the buffer memory
-      if (CAMERA_DEBUG) {
+      if (verbose) {
         cerr << "SEND: Picture " << ts << " successfully sent\n";
       }
       delete buf;
@@ -246,7 +244,7 @@ namespace COS518 {
         if (fm->queueSize() < maxInQ) {
           fm->nextToQueue();
                         
-          if (CAMERA_DEBUG) {
+          if (verbose) {
             cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
           }
         }
@@ -263,19 +261,30 @@ using namespace COS518;
 
 int main(int argc, char** argv) {
   // Return an error if an improper number of arguments are specified
-  if (argc != 3) {
+  if (argc < 3) {
     cerr << "Usage: camera [Unique ID] [Server Port]\n";
+    cerr << "Options: [-v OR --verbose] [-r OR --reconnect]\n";
     return 1;
   }
-  
+
   // Initialize filestructure
   string dir = "output";
   string cfg = "config";
   string timefile = cfg + "/time.txt";
+  bool reconnect = false;
+
+  // Handle command line flags
+  for (int i = 2; i < argc; i++) {
+    string str(argv[i]);
+    if (str == "-v" || str == "--verbose") verbose = true; 
+    if (str == "-r" || str == "--reconnect") reconnect = true;   
+  }  
   
+  // Create directories as necessary
   mkdir(dir.c_str(), 0755);
   mkdir(cfg.c_str(), 0755);
     
+  // Create the timefile
   FILE *fp;
   if ((fp = fopen(timefile.c_str(), "r"))) {
     fclose(fp);
@@ -288,11 +297,11 @@ int main(int argc, char** argv) {
   // Initialize datastructures
   FileMgr *fm = new FileMgr(dir);
   Acceptor acpt(argv[2]);
-  if (CAMERA_DEBUG) {
+  if (verbose) {
     cerr << "MAIN: Waiting to accept connection \n";
   }
   ServerSocket *sock = acpt.accept();
-  if (CAMERA_DEBUG) {
+  if (verbose) {
     cerr << "MAIN: Accepted connection\n";
   }
   
@@ -302,11 +311,15 @@ int main(int argc, char** argv) {
   
   // Begin threads that crash if the socket closes
   for (; ;) {
-    // Reopen the socket if it has closed
+    // Handle a closed socket
     while (!sock->isOpen()) {
-      exit(0);
       delete sock;
-      if (CAMERA_DEBUG) {
+
+      // Exit if desired
+      if (!reconnect) exit(0);
+
+      // Reconnect otherwise
+      if (verbose) {
         cerr << "MAIN: Waiting for a connection\n";
         this_thread::sleep_for(chrono::milliseconds(1000));
       }
