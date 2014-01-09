@@ -16,4 +16,8 @@ namespace COS518 {
 	    memcpy(&l, b, sizeof(long));
 	    return l;
 	}
+
+    long now() {
+        return chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+    }
 }

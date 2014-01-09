@@ -22,9 +22,6 @@
 #include <queue>
 #include <condition_variable>
 
-#define BENCHMARK 1
-#define RECIPIENT_DEBUG 1
-
 using namespace std;
 using namespace cv;
 using namespace UserDefined;
@@ -43,18 +40,28 @@ struct QueueEntry {
 
 int main(int argc, char **argv) {
     // Validate command line arguments
-    if (argc < 3 || argc > 5) {
-        cerr << "Usage: server [camera address] [camera port] [optional: max sendables] [optional: benchmark skip]";
+    if (argc < 3) {
+        cerr << "Usage: server [camera address] [camera port]\n";
+        cerr << "Options: [-b OR --benchmark] [-v OR --verbose] [-m OR --max INT] [-s OR --skip INT]\n";
         return 1;
     }
-    
-    // Set a maximum number of sendables to receive
+
+    // Handle options
     long max = 0;
     long skip = 0;
-    if (argc >= 4) max = stol(argv[3]);
-    if (argc >= 5) skip = stol(argv[4]);
+    bool verbose = false;
+    bool benchmark = false;
 
-    if (RECIPIENT_DEBUG) { cerr << "max: " << max << "\nskip: " << skip << "\n"; }
+    for (int i = 3; i < argc; i++) {
+        string str(argv[i]);
+
+        if (str == "-m" || str == "--max")  max  = stol(argv[++i]);
+        if (str == "-s" || str == "--skip") skip = stol(argv[++i]);
+        if (str == "-v" || str == "--verbose") verbose = true;
+        if (str == "-b" || str == "--benchmark") benchmark = true;
+    }
+
+    if (verbose) { cerr << "max: " << max << "\nskip: " << skip << "\n"; }
     
     // A queue and a lock for storing received bytearrays
     queue<QueueEntry> *q = new queue<QueueEntry>();
@@ -95,29 +102,29 @@ int main(int argc, char **argv) {
     };
     
     // Create a threadpool of workers
-    ThreadPool tp(worker, 5);
+    ThreadPool tp(worker, 30);
     
     // Loop forever pulling sendables
     for (; ;) {
         // Initiate a connection
-        if (RECIPIENT_DEBUG) cerr << "Initiating connection...\n";
+        if (verbose) cerr << "Initiating connection...\n";
         ClientSocket *s = new ClientSocket(argv[1], argv[2]);
         
         // If the connection can't be set up, retry once every second
         while (!s->isOpen()) {
             delete s;
             s = new ClientSocket(argv[1], argv[2]);
-	        this_thread::sleep_for(chrono::milliseconds(1000));
+	    this_thread::sleep_for(chrono::milliseconds(100));
         }
         
         // Get the length of a long
         char long_len;
         s->recv(&long_len, 1);
-        if (RECIPIENT_DEBUG) cerr << "long_len: " << int(long_len) << "\n";
+        if (verbose) cerr << "long_len: " << int(long_len) << "\n";
         
         // Get the camera's id number
         long id = s->recv();
-        if (RECIPIENT_DEBUG) cerr << "id: " << id << "\n";
+        if (verbose) cerr << "id: " << id << "\n";
         
         // Create a directory if it doesn't already exist
         stringstream sss;
@@ -125,21 +132,11 @@ int main(int argc, char **argv) {
         mkdir(sss.str().c_str(), 0755);
         
         // Benchmarking metatdata
-        long start, sent, oldbmark;
-        if (BENCHMARK) {
-            start  = -1;    
-	        sent = 0;
-	        oldbmark = 0;
-	    }
+        long start = -1, sent = 0, oldbmark = 0;
 
         // Receive sendables
         while(s->isOpen()) {
             long ts, len;
-
-            if (BENCHMARK && sent < skip) {
-                start = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
-                oldbmark = start;
-            }
             
             // Receive timestamp and length of the message
             try {
@@ -148,7 +145,7 @@ int main(int argc, char **argv) {
             } catch (...) { continue; }
             
             // Receive the serialized sendable itself
-            if (RECIPIENT_DEBUG) cerr << "received: " << len << "bytes\n";
+            if (verbose) cerr << "received: " << len << "bytes\n";
             char *b = new char[len];
             try { s->recv(b, len); } catch (...) { continue; }
             
@@ -161,23 +158,26 @@ int main(int argc, char **argv) {
             // Add the QueueEntry to the queue
             unique_lock<mutex> ul(*lock);
             q->push(qe);
-            has_item.notify_one();
             ul.unlock();
+            has_item.notify_one();
             
             // Send the ack
             try { s->send(ts); } catch (...) { continue; }
             sent++;
             
             // Benchmark
-            if (BENCHMARK && sent >= skip) {
+            if (benchmark && sent == skip) {
+                start = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+                oldbmark = start;
+            } else if (benchmark && sent > skip) {
                 long  bmark  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
-                cerr << "Average ms per Sendable: " << ((bmark - start)/sent) << "\n";
+                cerr << "Average ms per Sendable: " << ((bmark - start)/(sent - skip)) << "\n";
                 cerr << "Time for this Sendable: " << (bmark - oldbmark) << "\n";
                 oldbmark = bmark;
             }
 
-			// Exit if the maximum number of sendables has been hit
-			if (max != 0 && sent == max) {
+            // Exit if the maximum number of sendables has been hit
+            if (max != 0 && sent == max) {
                 stop = true;
                 has_item.notify_all();
                 tp.join(); 

@@ -11,6 +11,7 @@
 #include <queue>
 #include <map>
 #include <cstdio>
+#include <condition_variable>
 
 using namespace UserDefined;
 using namespace std;
@@ -20,6 +21,8 @@ namespace COS518 {
         // Private members
         private:
         string dir;
+        condition_variable *heap_empty;
+        condition_variable *queue_empty;
         mutex *heapLock;
         mutex *queueLock;
         mutex *acksLock;
@@ -28,19 +31,19 @@ namespace COS518 {
         map<long, string>         *acks;
         
         HeapEntry parseName(string& dir, string& filename) throw(int);
-        HeapEntry removeMax() throw(int);
+        HeapEntry removeMax();
         
         // Public members
         public:
         FileMgr(string dir) throw();
        ~FileMgr();
        
-        char *nextToAcks(long *ts, int *len, string&) throw(int);
+        char *nextToAcks(long *ts, int *len, string&);
         void  ack(long ts);
         int   ackSize();
         
         void enqueue(long ts, char *buf, int len, string filename);
-        void nextToQueue() throw(int);
+        void nextToQueue();
         bool queueIsEmpty();
         int  queueSize();
         

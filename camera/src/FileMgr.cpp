@@ -31,27 +31,27 @@ namespace COS518 {
     /*******************************************************************************/
     // Insert into the pq
     void FileMgr::insert(long ts, long score, string &filename) {
+        // Add the item to the heap
         heapLock->lock();
         pq->push(HeapEntry(ts, score, filename));
-        if (HEAP_DEBUG) {
-            cerr << "HEAP: inserted " << filename << "\n";
-        }
+
+        // Release the lock and notify the cv
         heapLock->unlock();
+        heap_empty->notify_one();
     }
     
     // Remove the maximum element and return it
-    HeapEntry FileMgr::removeMax() throw(int) {
-        heapLock->lock();
+    HeapEntry FileMgr::removeMax() {
+        // Ensure that there is something in the heap
+        unique_lock<mutex> ul(*heapLock);
+        while(pq->empty()) heap_empty->wait(ul);
         
-        if (pq->empty()) {
-            heapLock->unlock();
-            throw 13;
-        }
-        
+        // Retrieve the maximum element
         HeapEntry e = pq->top();
         pq->pop();
         
-        heapLock->unlock();
+        // Release the lock and finish
+        ul.unlock();
         return e;
     }
     
@@ -66,13 +66,17 @@ namespace COS518 {
     int  FileMgr::queueSize()    { return q->size();  }
     
     void FileMgr::enqueue(long ts, char *buf, int len, string filename) {
+        // Acquire the lock and add the items to the queue
         queueLock->lock();
         QueueEntry qe(ts, buf, len, filename);
         q->push(qe);
+
+        // Release the lock and notify the monitor
         queueLock->unlock();
+        queue_empty->notify_one();
     }        
     
-    void FileMgr::nextToQueue() throw(int) {
+    void FileMgr::nextToQueue() {
         // Get the HeapEntry
         HeapEntry he = removeMax();
         
@@ -97,36 +101,28 @@ namespace COS518 {
         // Finish
         assert(buf);
         enqueue(he.getTimestamp(), buf, len, filename);
-        if (HEAP_DEBUG) {
-            cerr << "QUEUE: added " << filename << "\n";
-        }
     }
     
     /*******************************************************************************/
     /* MANIPULATE THE MAP                                                          */
     /*******************************************************************************/
-    char *FileMgr::nextToAcks(long *ts, int *len, string &filename) throw(int) {
+    char *FileMgr::nextToAcks(long *ts, int *len, string &filename) {
         // Reserve the lock
-        queueLock->lock();
         char *out;
+        unique_lock<mutex> ul(*queueLock);
         
-        // Throw an exception if the queue is empty
-        if (q->empty()) {
-            queueLock->unlock();
-            throw 12;
-        }
+        // Wait on the monitor if the queue is empty
+        while(q->empty()) queue_empty->wait(ul);
         
-        // Take the entry out of the queue
+        // Take the entry out of the queue and release the lock
         QueueEntry qe = q->front();
         q->pop();
+        ul.unlock();
         
         // Prepare the output information
         *ts = qe.getTimestamp();
         out = qe.getBuffer(len);
         filename = qe.getFilename();
-        
-        // Unlock the lock
-        queueLock->unlock();
         
         // Add to the ack map
         acksLock->lock();
@@ -156,6 +152,9 @@ namespace COS518 {
         acks = new map<long, string>;
         q    = new queue<QueueEntry>();
         pq   = new priority_queue<HeapEntry>();
+
+        heap_empty  = new condition_variable();
+        queue_empty = new condition_variable();
         
         heapLock  = new mutex();
         queueLock = new mutex();
@@ -190,5 +189,8 @@ namespace COS518 {
         delete q;
         delete heapLock;
         delete queueLock;
+        delete acksLock;
+        delete heap_empty;
+        delete queue_empty;
     }
 }

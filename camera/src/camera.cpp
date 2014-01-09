@@ -78,7 +78,7 @@ namespace COS518 {
 
     // Declare a function for performing writing and enqueuing
     function<void()> worker = [&directory, &q, &lock, fm, maxInQ, &cv]() {
-            
+
       for (; ;) {
         // Wait for the queue to have something in it
         unique_lock<mutex> ul(*lock);
@@ -99,8 +99,6 @@ namespace COS518 {
         FILE *file = fopen(path.c_str(), "wb");
         fwrite(qi.buf, 1, qi.len, file);
         fclose(file);
-	           
-        // Insert the sendable object into the FileMgr
         if (CAMERA_DEBUG) cerr << "CAPTURE: " << this_thread::get_id() << " ";
 	           
         // If the heap is empty, take the fast path
@@ -119,7 +117,7 @@ namespace COS518 {
     };
 	                                 
     // A threadpool to manage workers
-    ThreadPool tp(worker, 30);
+    ThreadPool tp(worker, 20);
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -132,7 +130,7 @@ namespace COS518 {
     for (; ; lamport++) {
       // Capture a new picture
       cap >> pic;
-      long  ts  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+      long  ts  = Util::now();
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
         // Update the lamport time if necessary
@@ -155,7 +153,7 @@ namespace COS518 {
       }
 
       if (CAMERA_DEBUG) this_thread::sleep_for(chrono::milliseconds(1000));
-      long  ts2  = chrono::system_clock::now().time_since_epoch() / chrono::milliseconds(1);
+      long  ts2  = Util::now();
       long used = ts2 - ts;
       cerr << "used: " << used << "\n";
     }
@@ -209,16 +207,8 @@ namespace COS518 {
     // Loop forever sending items from the FileManager's queue
     for (; ;) {
             
-      // Attempt to take a picture from the FileManager
-      while (true) {
-        try { buf = fm->nextToAcks(&ts, &len, filename); }
-                
-        // On failure, try again
-        catch (...) { continue; }
-                
-        // On success, exit the loop
-        break;
-      }
+      // Take a picture from the FileManager
+      buf = fm->nextToAcks(&ts, &len, filename);
             
       // Attempt to send the item over the wire
       try {
@@ -254,14 +244,11 @@ namespace COS518 {
       // Sleep if the queue is currently full
       for (; ;) {
         if (fm->queueSize() < maxInQ) {
-          try {
-            fm->nextToQueue();
+          fm->nextToQueue();
                         
-            if (CAMERA_DEBUG) {
-              cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
-            }
+          if (CAMERA_DEBUG) {
+            cerr << "LOAD: " << this_thread::get_id() << " has loaded\n";
           }
-          catch (...) { }
         }
       }
     };

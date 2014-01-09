@@ -4,6 +4,7 @@
 namespace COS518 {
     char *long_to_bytes(long );
     long  bytes_to_long(char*);
+    long  now();
 }
 
 #endif

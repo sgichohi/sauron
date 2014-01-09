@@ -28,7 +28,7 @@ namespace COS518 {
 		// Retrieve a socket and connect
 		sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
-			cerr << "Connect error : " << strerror(errno) << "\n";
+			//cerr << "Connect error : " << strerror(errno) << "\n";
 			::close(sock);
 			freeaddrinfo(res);
 			return;
