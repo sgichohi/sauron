@@ -1,3 +1,3 @@
 make inc
 rm -r 5
-build/recipient localhost 5000 --max 300 --skip 50 --benchmark
+build/recipient localhost 5000 --max 120 --skip 50 --benchmark
