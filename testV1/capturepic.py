@@ -2,6 +2,7 @@ import cv2
 from utils import ensure_dir
 import time
 from models import CameraFrame
+from cameraClient import CameraClient
 
 def saveImage(conn, parent_dir, session):
     ensure_dir(parent_dir)
@@ -18,9 +19,24 @@ def saveImage(conn, parent_dir, session):
         count += 1
     session.commit()
     conn.close()
-    
 
-def grabFrame(conn):
+def newgrabFrame(conn, port):
+    cam = CameraClient('127.0.0.1', port)
+    while True:
+
+        im = cam.getResults()
+        conn.send(im)
+        cv2.imshow('frame',im)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+               break
+    conn.close()
+    cv2.destroyAllWindows()
+
+
+
+
+def grabFrame(conn, port):
+    """Grabs a frame from the network"""
     cap = cv2.VideoCapture(0)
     
     while(cap.isOpened()):

@@ -1,8 +1,7 @@
-from vision import Identity
+from vision import identity
 
 maps = {
 	
-	"scoring": Scoring()
+	"identity": identity,
 	
-	"identity": Identity()
 }
