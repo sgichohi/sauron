@@ -4,13 +4,19 @@ pip install -r requirements.txt
 
 How to run:
 
-python camera.py
+python camera.py c++recepientport webserverport
 
-TODO:
+Testing:
 
-Make the process model into function calls or imports 
+open 127.0.0.1:webserverport/do/identity
 
-Define the ITransform and RTransform interfaces
+Take the /static/*/* part from the List of URLS and chunk it into a link as so.
+
+127.0.0.1:webserverport/earlier_static_url
+
+You should see a picture.
+
+I'll be plugging in the recipient from C++ when I work sth out with legendary Jonathan.
 
 Design Docs:
 
