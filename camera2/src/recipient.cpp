@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
         // Get the camera's id number
         char id;
         s->recv(&id, 1);
-        if (verbose) cerr << "id: " << id << "\n";
+        if (verbose) cerr << "id: " << (int)id << "\n";
         
         // Create a directory if it doesn't already exist
         stringstream sss;

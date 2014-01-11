@@ -89,7 +89,7 @@ namespace COS518 {
 		            
         // Build the path to the file
         stringstream ss;
-        ss << qi.ts << "-" << qi.score << ".jpg";
+        ss << qi.ts << "-" << qi.score << ".sendable";
         string filename = ss.str();
         string path = directory + "/" + filename;
 	        	                
@@ -121,6 +121,7 @@ namespace COS518 {
     for (; ; lamport++) {
       // Capture a new picture
       cap >> pic;
+      
       for (trfm->begin(pic, ts); !trfm->finished(); trfm->next()) {
 
         // Update the lamport time if necessary
@@ -170,10 +171,11 @@ namespace COS518 {
   /* a single picture.                                                           */
   /*******************************************************************************/
   void loadThread(FileMgr *fm, AbstractSocket *sock, int id) {
+    char c = id & 0xFF;
+    
     // Send the id
     try {
-      char b = id & 0xFF;
-      sock->send(&b, 1);
+      sock->send(&c, 1);
     } catch(...) { return; }
     
     // Send off of the heap
