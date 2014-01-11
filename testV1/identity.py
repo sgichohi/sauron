@@ -21,9 +21,24 @@ def identity(*args, **kwargs):
 	#request params from http
 	request = kwargs["request"]
 	print request
+
 	#for each image we have so far, get the location
-	
 	image_locations = [x.location for x in session.query(CameraFrame).all()][:10]
 	#convert to sth the file server can give you
 	image_static = ["/static/" + os.path.relpath(direc, settings.STATIC_DIR["path"]) for direc in image_locations]
 	return json.dumps(image_static)
+
+def faces(*args, **kwargs):
+        """
+        Detects and shows faces
+        """
+
+        session = kwargs["session"]
+        request = kwargs["request"]
+
+        first_index = int(request.args.get("first")) 
+        last_index = int(request.args.get("last"))
+
+        images = [x.location for x in session.query(CameraFrame).all()][first_index:last_index+1]
+
+        
