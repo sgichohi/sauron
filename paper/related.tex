@@ -1,0 +1,29 @@
+\section{Related Work}
+\label{sec:related}
+
+There has been significant previous work on video analysis and keyframe
+detection in the computer vision community. For example, Girgensohn and
+Boreczky \cite{related1} accomplish this process by applying a clustering
+algorithm to the set of frames from a video and selecting a representative
+frame from each cluster. Wolf \cite{related2} first divides the video into shots by detecting 
+camera cuts and transitions, and then looks for local minimums of object motion
+within each shot, presenting these as the keyframes. These approaches are
+not a good fit for our problem, as they either only work offline, or are based
+on assumptions about how videos are shot that only hold true for media
+professionally produced for entertainment. 
+
+There has also been research into applying computer vision to analyze
+security footage, but it focuses on semantic analysis of large archives of
+video, rather than on determining individual frames that are not important.
+For example, Regazzoni’s work \cite{related3} finds abandoned objects in
+video footage to help police searching events like, for example, the moment
+when a bomb was planted. 
+
+For the Feature Delta transformer, we used an approach based on applying
+the SIFT feature detector \cite{related4} to find features within each frame
+and then assigning importance to frames where new features arise
+or existing features move significantly. This approach is simple and fast,
+can use existing implementations of the SIFT algorithm, and is
+not based on a particular semantic interpretation of the scene.
+
+

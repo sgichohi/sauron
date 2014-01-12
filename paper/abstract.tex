@@ -1,0 +1,18 @@
+% -*-LaTeX-*-
+% $Id: abstract.tex 70 2007-01-30 21:59:16Z nicolosi $
+
+\begin{abstract}
+Recent advances in low-cost, high-performance processors and
+computer vision have set the stage for a variety of innovative devices
+and applications.  Inspired by the concept of a new generation of
+security cameras, we present a C++ and Python framework for
+conveniently managing distributed systems of computers equipped
+with cameras.  Users define transformations on streams of video
+frames, with the framework handling the requisite networking
+components and data aggregation.  Initially, the framework eagerly
+applied transformations to all frames, the results of which it pushed
+to a recipient server.  A subsequent extension allows clients to use an
+HTTP-based interface to pull data from cameras, triggering lazy
+transformation application.
+\end{abstract}
+

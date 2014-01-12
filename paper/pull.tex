@@ -1,0 +1,74 @@
+\section{Pull Architecture}
+\label{sec:pull}
+
+\paragraph{Limitations of the Push Architecture.}
+The most significant weakness of the push architecture is
+that it eagerly applies a transformation to all frames, creating
+many sendables that, due to network limitations, may never
+actually be transmitted.  This unnecessary computational work is
+potentially significant on a device like a Raspberry Pi. The
+push architecture also presents a difficult-to-use
+interface to a programmer writing a recipient server, which
+must efficiently handle a continuous flow of sendables.
+These two deficiencies inspired an extension of the original
+architecture into one which lazily applies transformations and
+presents an HTTP-based interface to recipients, resulting in a
+more efficient and usable framework.
+
+\paragraph{Design.}
+Although performing all transformations lazily would achieve
+optimal efficiency by only doing work that is absolutely necessary,
+solely permitting lazy transformations would render global sendable
+reordering impossible.  We therefore took a hybrid approach
+where a user supplies two sets of transformations.  The first,
+eager transformation is applied as in the push architecture.
+Rather than doing all of the work, the eager transformation
+should be written so as to efficiently do any reordering and
+data size reduction that must be applied globally.  These
+\emph{intermediate sendables} are inserted into a database, where
+they are accessible to a number of more work-intensive, lazy
+transformations.  Data recipients can then request the final
+results of these transformations over HTTP.  This compromise
+between laziness and eagerness maintains the best aspects
+of the original model while compensating for its weaknesses.
+
+\paragraph{Programmer Interface}
+These changes represent a pure extension to the original framework.
+Rather than pushing sendables over the network, the original model
+was modified to insert them, along with other metadata, into a SQLite
+database.  This database is made accessible to a webserver interface
+written in Python.  Users of the framework write Python functions
+that encapsulate different queries a recipient might make on a lazy
+transformation, such as performing it on the highest-scored sendable
+available or sendables created between 2:00pm and 3:00pm.  This
+Python section of the framework exports URLS of the format:
+
+\texttt{\\http://[ip]/do/[function]?[arguments]\\}
+
+The \texttt{function} component of the URL refers to the name of
+the Python function to be executed.  Recipients supply arguments to the method using
+the URL's query string.  Users of the framework are free to either
+pass the results of the transformation in response to the original HTTP
+message or to respond with a second URL from which the results are accessible.
+Since Python has first-class functions, programmers can easily 
+combine transformations.
+
+\paragraph{Enhancements}
+
+In addition to optimizing the performance of the framework,
+this extension supports several additional enhancements.  Users may 
+define multiple transformations that run in parallel on each camera and
+examine cameras from any number of recipients.  These transformations
+have free reign over the database of sendables, permitting
+the framework to transparently support sendable-specific queries that
+would previously have been impossible.   The pull architecture provides a
+convenient interface at a high level of abstraction for the framework, making
+it far easier to use than the push architecture alone.
+
+Finally, the push architecture presents a much more useful interface
+for a user wishing to examine the state of a camera over the interent.
+To do so with the push architecture would have required a viewer to receive
+and store all frames that a camera supplied, which would be highly inconvenient on
+a smartphone app.  The pull architecture permits a user to perform queries on
+the state of a camera without receiving an overwhelming amount of data or
+modifying the state of the camera in any way.
