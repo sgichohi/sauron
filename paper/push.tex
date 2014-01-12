@@ -44,7 +44,8 @@ Recipient serializes and stores these sendables to disk.  Each camera uniquely
 identifies itself with an integer id that is also dictated by a user on the command-line.
 Since cameras listen on TCP sockets, it is possible to retrieve frames from a camera
 anywhere on the internet, although it might be difficult to do so over an internet
-connection at a reasonable frame rate.  This question is discussed further in the following section.
+connection at a reasonable frame rate.  This question is addressed further in the
+section about the pull architecture.
 
 When a recipient closes a connection, the camera to which it was formerly connected
 waits for another recipient to connect.  Correspondingly, a recipient continuously
@@ -124,7 +125,7 @@ the security camera described in Section 2.
 We tested the framework's ability to send frames over the over the network
 using two different transformations: one that makes no modifications
 (Identity) and one the reorders frames using feature detection on up to
-1000 features (Feature Delta).  The benchmarks were conducted over a
+100 features (Feature Delta).  The benchmarks were conducted over a
 virtual network supported by VirtualBox with a tested network speed of about 1.5Gbps.
 We used traffic shaping to simulate a network at capacities between 1Mbps and 12Mbps in order to
 determine the point at which the framework's bottleneck switches from being the
@@ -156,7 +157,7 @@ With the clock speed throttled to 800MHz, the results were little different.  Up
 higher bandwidths, the frame rate again flattened, this time about 2 frames per second
 lower than in the first test.  As before, there was only a slight decrease in performance
 between the two transformations.  Even in this test, the CPU usage remained well
-below 100%.
+below 100\%.
 
 Although we have no direct basis for comparison between the Core i5 processor in the
 test camera and the Raspberry Pi's ARM CPU, we can safely conclude that this framework
