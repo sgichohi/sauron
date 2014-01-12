@@ -20,11 +20,11 @@ by relative importance; to send them in temporal order, a user need only set the
 score to the sendable's creation timestamp.
 
 Example transformers include a stateful object that uses feature-detection to assign scores
-based on the differences between frames as described in Section 2, and
+based on the differences between frames as described in Section 2 and
 one that extracts all faces from an image.  Both of these transformers use sendables
 that merely store a single image.  We could also imagine a transformer that performs facial recognition
-of a specified person or group of people, producing a sendable containing a person's name, 
-thereby alerting a remote server, whenever someone is identified in a frame.
+of a specified person or group of people, producing a sendable containing a person's name -
+and thereby alerting a remote server - whenever someone is identified in a frame.
 
 \paragraph{Programmer Interface.}
 
@@ -57,7 +57,7 @@ The design of the push architecture resembles the paradigm described in
 SEDA~\cite{seda}, with a multi-stage pipeline of thread pools connected
 by bounded queues. The threads in each stage wait on condition variables
 when their input queues are empty or their output queues are full.  This
-choice avoids wasting CPU cycles spinning on locks while reduce the severity
+choice avoids wasting CPU cycles spinning on locks while reducing the severity
 of lock contention between threads.  Although the effects of condition variables
 are decribed in more detail in the evaluation section, this seemingly minor
 decision paid tremendous performance dividends in settings where CPU
