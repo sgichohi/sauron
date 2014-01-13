@@ -1,0 +1,11 @@
+Flask==0.10.1
+-e git+https://github.com/mitsuhiko/flask-sqlalchemy@d4560013c1c51ef035381e35dd42a1628bb212ee#egg=Flask_SQLAlchemy-dev
+Jinja2==2.7.1
+MarkupSafe==0.18
+SQLAlchemy==0.8.4
+Werkzeug==0.9.4
+itsdangerous==0.23
+numpy==1.8.0
+simplejson==3.3.2
+tornado==3.1.1
+wsgiref==0.1.2
