@@ -1,0 +1,50 @@
+\section{Motivation}
+If we were to consider the essential requirements of an
+effective security camera, what would our list look like?
+We know that they would have to take pictures and
+rapidly transmit them to a central server.  We would desire
+this process to be resilient to network and camera failure,
+storing frames persistently and transmitting them as soon
+as the network comes back up.  In the event that the network
+is congested, they should send the most "important" frames
+first, ensuring that critical information reaches the server as
+soon as possible.  Physically, they should be easy to install and remove,
+providing flexibility and mobility.  Above all, they should be cheap.
+
+It may seem surprising to note that commercially available
+security camera solutions satisfy only one of these requirements:
+they take pictures.  These systems rely on dedicated, proprietary
+physical links or wireless networks, limiting flexibility and increasing
+costs.  They demand favorable environments in which congestion
+is non-existent, connection speeds are always sufficient, and all processing
+can be done instantaneously at the server.  To guarantee these
+conditions, manufacturers limit the number of "channels," and therefore
+simultaneous cameras, their systems will support.  Even with all of these 
+limitations, security camera systems are still quite expensive, with a
+\$100/camera price at the lower end of the market.  Most camera
+packages tout features like camera quality and access over the internet and
+via smartphone apps.
+
+All told, this perfect confluence of ideal circumstances does not hold in
+many situations.  Conditions where cameras must be quick to install or even mobile, the 
+connection medium is shared, and the link itself is unreliable abound in a variety 
+of contemporary settings where video monitoring is essential.  From outdoor 
+events to war zones, many environments contain one or more of these adverse 
+components that traditional security systems could not overcome.  Furthermore, 
+an ideal environment quickly becomes adverse when its owner loses physical 
+control, as evidenced in the recent attack at a shopping mall in Nairobi among 
+numerous other incidents in the past few years.
+
+We believe that, using an array of Raspberry Pi devices with camera attachments
+(\$70 on Amazon at the time of writing), we can develop - at lower cost - a more
+robust, flexible, and intelligent security system that is able to continue to meet
+these more stringent requirements.  A camera would run feature-detection on each frame it captures,
+comparing it to its predecessor and scoring it based on the difference.  Frames with higher
+scores would be sent first, with all others cached on persistent memory
+until there is enough network bandwidth to send them.  The system could communicate
+over a standard 802.11 wireless network, rendering cameras mobile within wireless range
+while imposing no strict limit on the number of channels available.  Our framework was
+designed with this example in mind, although it has been generalized to support arbitrary
+distributed computer vision.
+
+\label{sec:motivation}

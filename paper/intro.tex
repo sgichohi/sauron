@@ -1,0 +1,58 @@
+\section{Introduction}
+\label{sec:intro}
+
+Over the past few years, we have been the beneficiaries of
+two quietly game-changing technological revolutions: the coming
+of age of low-power processors and computer vision.  While
+much of the world's attention has been devoted to Instagram
+and Snapchat, cell phone processors silently crossed the 1Ghz
+and dual-core marks; recently, Samsung announced an eight core
+processor intended for use in high-end smartphones~\cite{exynos}.
+Where, as recently as 2007, the flagship cell phone coming to market
+was a flip-phone~\cite{razr}, today's smartphones now rival tablets - 
+or even laptops - in their computational capabilities.  For use in such
+platforms, these processors are also cheap and exceedingly power-efficient.
+
+Although they have mainly seen use in smartphones, these CPUs have
+found their way into a variety of other environments where cost and
+energy-efficiency are requirements.  One device, the Raspberry Pi,
+leverages these developments in inexpensive hardware to supply a
+general-purpose computer at a price well under \$50 and in a package
+little larger than a pack of playing cards~\cite{pi:faqs}. Online guides exist
+for turning the device into everything from a media player appliance
+or a sophisticated sensor to a fully-functional desktop machine~\cite{pi:ideas}.
+We envision a new application for these inexpensive yet powerful computers
+based on recent developments in computer vision.
+
+Computer vision, the process of algorithmically interpreting images to
+extract knowledge about their content, has, in the past decade, grown
+from a pure research endeavor into a useful toolkit for developers.
+OpenCV is an open-source computer vision library compatible with all major
+desktop operating systems and with implementations for C++, Python,
+Java, and other languages.  It provides a convenient interface for
+programmers with limited domain-specific expertise to develop applications
+with significant vision components~\cite{cv:about}. Beyond simple ease-of-use,
+the library's vision algorithms are highly optimized to be performance-friendly.
+OpenCV's success is a major milestone for computer vision research, marking
+its ascendance into the ranks of core computer science knowledge.
+
+Connecting the dots, computer vision is getting ever less demanding as
+cheap processors are becoming increasingly capable.  We see a world
+of possibilities in the intersection of these two trend lines, pairing cameras
+with Raspberry Pi-class devices to unlock the imaginations of developers
+and enable a variety of new applications.  In this paper, we describe the
+design and implementation of a framework for distributed systems of these
+computer-equipped cameras that:
+
+\begin{enumerate}
+    \setlength{\itemsep}{5pt}
+    \item Uses inexpensive, commodity computer and network hardware.
+    \item Allows developers to write simple vision algorithms that are applied across the system.
+    \item Executes these algorithms efficiently while automatically managing the limited resources of these inexpensive computers.
+    \item Makes the results of these algorithms accessible in a convenient, high-level manner.
+\end{enumerate}
+
+We first describe the original inspiration for this framework, smart security cameras
+(Section 2), and an initial eager, "push" architecture that supports this application (Section 3).
+We then explain an extension of this original framework into a lazy, "pull" architecture with an
+HTTP-based interface and better resource utilization (Section 4).
