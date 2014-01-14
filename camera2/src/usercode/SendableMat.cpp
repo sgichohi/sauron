@@ -21,23 +21,8 @@ namespace UserDefined {
     
   // Deserializer constructor
   void SendableMat::initialize(char *b) {
-    int inLength;
-    memcpy(&inLength, b, sizeof(inLength));
-
-    int picLen = inLength - (sizeof(inLength) + sizeof(timestamp) + sizeof(score));
-    if (picLen < 0) {
-      fprintf(stderr, "Input to deserializer too short.");
-    }
-
-    memcpy(&timestamp, b + sizeof(inLength), sizeof(timestamp));
-    memcpy(&score, b + sizeof(inLength) + sizeof(timestamp), sizeof(score));
-
-    vector<uchar> buf;
-    buf.reserve(picLen);
-    buf.assign(b + sizeof(inLength) + sizeof(timestamp) + sizeof(score),
-               b + inLength);
-      
-    pic = imdecode(buf, 1);
+    this->score = 0;
+    this->timestamp = 0;
   }
     
   // Serializer
@@ -45,13 +30,9 @@ namespace UserDefined {
     vector<uchar> buf;
     imencode(".jpg", pic, buf);
 
-    *outLength = sizeof(*outLength) + sizeof(timestamp) + sizeof(score) + buf.size();
+    *outLength = buf.size();
     char *b = new char[*outLength];
-    memcpy(b, outLength, sizeof(*outLength));
-    memcpy(b + sizeof(*outLength), &timestamp, sizeof(timestamp));
-    memcpy(b + sizeof(*outLength) + sizeof(timestamp), &score, sizeof(score));
-    memcpy(b + sizeof(*outLength) + sizeof(timestamp) + sizeof(score),
-           buf.data(), buf.size());
+    memcpy(b, buf.data(), buf.size());
       
     return b;
   }
