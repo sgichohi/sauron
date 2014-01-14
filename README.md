@@ -3,4 +3,4 @@ sauron
 
 The all-seeing eye...
 
-To run please go into src and run run.sh
+To run the pull architecture (V1), please go into src and run run.sh
