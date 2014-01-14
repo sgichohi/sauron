@@ -11,6 +11,16 @@ import os
 import settings
 import cv2
 
+def convert_to_jpg(sendable_dir):
+	"""Change .sendables to .jpgs"""
+	
+	jpg_dir = sendable_dir.replace(".sendable", ".jpg")
+	if os.path.exists(sendable_dir):		
+		os.rename(sendable_dir, jpg_dir)
+	return jpg_dir
+	
+
+
 def identity(*args, **kwargs):
 	"""
 	Basically shows all images
@@ -21,15 +31,15 @@ def identity(*args, **kwargs):
 	session = kwargs["session"]
 	#request params from http
 	request = kwargs["request"]
-	print request
+	#print request
 
 	#for each image we have so far, get the location
-	image_locations = [x.location for x in session.query(CameraFrame).all()][:10]
+	image_locations = [convert_to_jpg(x.location) for x in session.query(CameraFrame).all()][:10]
 	#read the file into the buffer
 
 	#decode
 	#image_decoded = cv2.imdecode()
-	print image_locations
+	#print image_locations
 	#convert to sth the file server can give you
-	image_static = ["/static/" + direc for direc in image_locations]
+	image_static = ["/static/" + os.path.relpath(direc, settings.STATIC_DIR["path"]) for direc in image_locations]
 	return json.dumps(image_static)

@@ -89,7 +89,7 @@ namespace COS518 {
 		            
         // Build the path to the file
         stringstream ss;
-        ss << qi.ts << "-" << qi.score << ".jpg";
+        ss << qi.ts << "-" << qi.score << ".sendable";
         string filename = ss.str();
         string path = directory + "/" + filename;
 	        	                

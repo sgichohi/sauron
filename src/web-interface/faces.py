@@ -18,7 +18,7 @@ import os
 import settings
 import cv2
 import itertools
-
+from identity import convert_to_jpg
 face_cascade = None
 
 def faces(*args, **kwargs):
@@ -32,7 +32,8 @@ def faces(*args, **kwargs):
         first_index = int(request.args.get("first")) 
         last_index = int(request.args.get("last"))
 
-        image_locations = [x.location for x in session.query(CameraFrame).all()][first_index:last_index+1]
+        image_locations = [convert_to_jpg(x.location) for x in session.query(CameraFrame).all()][first_index:last_index+1]
+        #print len(image_locations)
 
         global face_cascade
         if face_cascade == None:
