@@ -25,7 +25,7 @@ eager transformation is applied as in the push architecture.
 Rather than doing all of the work, the eager transformation
 should be written so as to efficiently do any reordering and
 data size reduction that must be applied globally.  These
-\emph{intermediate sendables} are inserted into a database, where
+\emph{intermediate sendables} are written to file and their directories inserted into a database, where
 they are accessible to a number of more work-intensive, lazy
 transformations.  Data recipients can then request the final
 results of these transformations over HTTP.  This compromise
@@ -43,9 +43,9 @@ transformation, such as performing it on the highest-scored sendable
 available or sendables created between 2:00pm and 3:00pm.  This
 Python section of the framework exports URLS of the format:
 
-\texttt{\\http://[ip]/do/[function]?[arguments]\\}
+\texttt{\\http://[ip]/do/[transform]?[arguments]\\}
 
-The \texttt{function} component of the URL refers to the name of
+The \texttt{transform} component of the URL refers to the name of
 the Python function to be executed.  Recipients supply arguments to the method using
 the URL's query string.  Users of the framework are free to either
 pass the results of the transformation in response to the original HTTP
@@ -63,10 +63,12 @@ have free reign over the database of sendables, permitting
 the framework to transparently support sendable-specific queries that
 would previously have been impossible.   The pull architecture provides a
 convenient interface at a high level of abstraction for the framework, making
-it far easier to use than the push architecture alone.
+it far easier to use than the push architecture alone. Face detection
+for example is implemented in 70 lines of code in the pull model vs 200 lines of code
+in the push model.
 
 Finally, the push architecture presents a much more useful interface
-for a user wishing to examine the state of a camera over the interent.
+for a user wishing to examine the state of a camera over the internet.
 To do so with the push architecture would have required a viewer to receive
 and store all frames that a camera supplied, which would be highly inconvenient on
 a smartphone app.  The pull architecture permits a user to perform queries on
