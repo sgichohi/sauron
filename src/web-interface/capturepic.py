@@ -3,13 +3,15 @@ from utils import ensure_dir
 import cv2
 from models import CameraFrame
 from cameraClient import CameraClient
+import os
+import settings 
 
 def saveImage(conn, parent_dir, session):
     ensure_dir(parent_dir)
     count = 0L
     while True:
-        
-        fileLocation = conn.recv()
+        path = conn.recv()
+        fileLocation = os.path.relpath(path, settings.STATIC_DIR["path"])
         fr = CameraFrame(location=fileLocation, lamport_time=count)
         session.add(fr)
         if count % 10 == 0:

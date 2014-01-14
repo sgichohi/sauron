@@ -9,6 +9,7 @@ import simplejson as json
 from models import CameraFrame
 import os
 import settings
+import cv2
 
 def identity(*args, **kwargs):
 	"""
@@ -24,6 +25,11 @@ def identity(*args, **kwargs):
 
 	#for each image we have so far, get the location
 	image_locations = [x.location for x in session.query(CameraFrame).all()][:10]
+	#read the file into the buffer
+
+	#decode
+	#image_decoded = cv2.imdecode()
+	print image_locations
 	#convert to sth the file server can give you
-	image_static = ["/static/" + os.path.relpath(direc, settings.STATIC_DIR["path"]) for direc in image_locations]
+	image_static = ["/static/" + direc for direc in image_locations]
 	return json.dumps(image_static)

@@ -89,7 +89,7 @@ namespace COS518 {
 		            
         // Build the path to the file
         stringstream ss;
-        ss << qi.ts << "-" << qi.score << ".sendable";
+        ss << qi.ts << "-" << qi.score << ".jpg";
         string filename = ss.str();
         string path = directory + "/" + filename;
 	        	                
@@ -202,6 +202,7 @@ int main(int argc, char** argv) {
   if (argc < 3) {
     cerr << "Usage: camera [Unique ID] [Server Port]\n";
     cerr << "Options: [-v OR --verbose] [-r OR --reconnect]\n";
+    cerr << "[-d OR --directory {dir to store output}] [-m or --max {max number of sendables}]\n";
     return 1;
   }
 
@@ -218,6 +219,7 @@ int main(int argc, char** argv) {
     if (str == "-v" || str == "--verbose") verbose = true; 
     if (str == "-r" || str == "--reconnect") reconnect = true;
     if (str == "-m" || str == "--max") max = stoi(argv[++i]);
+    if (str == "-d" || str == "--directory") dir = string(argv[++i]);
   }  
   
   // Create directories as necessary
