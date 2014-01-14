@@ -67,6 +67,7 @@ def detect_faces(image_location):
                 faces.append(face)
 
         face_locations = [ image_location[:-4] + "_face_" + str(i) + ".jpg" for i in range(len(faces)) ]
+        print "face_locations", face_locations
 
         for (face, face_location) in zip(faces, face_locations):
                 cv2.imwrite(face_location, face)

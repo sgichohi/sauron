@@ -67,6 +67,7 @@ namespace COS518 {
     
   // The thread that actually performs the capturing
   void captureThread(string directory, FileMgr *fm, string timefile, int maxInQ, int max) {
+    
     long lamport = extendLamport(timefile, 1000);
     long limit   = lamport + 1000;
     Transformer *trfm = UserFactory::getFactory().getNewTransformer();

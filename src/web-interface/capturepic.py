@@ -12,6 +12,7 @@ def saveImage(conn, parent_dir, session):
     while True:
         path = conn.recv()
         fileLocation = path
+        #print "filelocation", fileLocation
         #fileLocation = os.path.relpath(path, settings.STATIC_DIR["path"])
         fr = CameraFrame(location=fileLocation, lamport_time=count)
         session.add(fr)

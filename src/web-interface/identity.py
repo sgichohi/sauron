@@ -39,7 +39,8 @@ def identity(*args, **kwargs):
 
 	#decode
 	#image_decoded = cv2.imdecode()
-	#print image_locations
+	print "image_locations", image_locations
+	print "settings", settings.STATIC_DIR["path"]
 	#convert to sth the file server can give you
 	image_static = ["/static/" + os.path.relpath(direc, settings.STATIC_DIR["path"]) for direc in image_locations]
 	return json.dumps(image_static)
