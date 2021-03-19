@@ -1,6 +1,6 @@
 Flask==1.1.1
 -e git+https://github.com/mitsuhiko/flask-sqlalchemy@d4560013c1c51ef035381e35dd42a1628bb212ee#egg=Flask_SQLAlchemy-dev
-Jinja2==2.7.1
+Jinja2==2.11.3
 MarkupSafe==0.18
 SQLAlchemy==0.8.4
 Werkzeug==0.15.3
